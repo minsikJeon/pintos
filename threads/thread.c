@@ -73,6 +73,8 @@ static tid_t allocate_tid (void);
  * somewhere in the middle, this locates the curent thread. */
 #define running_thread() ((struct thread *) (pg_round_down (rrsp ())))
 
+/* list of blocked threads */
+static struct list* sleep_list;
 
 // Global descriptor table for the thread_start.
 // Because the gdt will be setup after the thread_init, we should
@@ -83,13 +85,10 @@ static uint64_t gdt[3] = { 0, 0x00af9a000000ffff, 0x00cf92000000ffff };
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
    was careful to put the bottom of the stack at a page boundary.
-
    Also initializes the run queue and the tid lock.
-
    After calling this function, be sure to initialize the page
    allocator before trying to create any threads with
    thread_create().
-
    It is not safe to call thread_current() until this function
    finishes. */
 void
@@ -109,6 +108,12 @@ thread_init (void) {
 	lock_init (&tid_lock);
 	list_init (&ready_list);
 	list_init (&destruction_req);
+
+
+	/*------------------my implementation-------------------*/
+	list_init (&sleep_list)
+	/*------------------------------------------------------*/
+
 
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread ();
@@ -165,14 +170,12 @@ thread_print_stats (void) {
    PRIORITY, which executes FUNCTION passing AUX as the argument,
    and adds it to the ready queue.  Returns the thread identifier
    for the new thread, or TID_ERROR if creation fails.
-
    If thread_start() has been called, then the new thread may be
    scheduled before thread_create() returns.  It could even exit
    before thread_create() returns.  Contrariwise, the original
    thread may run for any amount of time before the new thread is
    scheduled.  Use a semaphore or some other form of
    synchronization if you need to ensure ordering.
-
    The code provided sets the new thread's `priority' member to
    PRIORITY, but no actual priority scheduling is implemented.
    Priority scheduling is the goal of Problem 1-3. */
@@ -212,7 +215,6 @@ thread_create (const char *name, int priority,
 
 /* Puts the current thread to sleep.  It will not be scheduled
    again until awoken by thread_unblock().
-
    This function must be called with interrupts turned off.  It
    is usually a better idea to use one of the synchronization
    primitives in synch.h. */
@@ -227,7 +229,6 @@ thread_block (void) {
 /* Transitions a blocked thread T to the ready-to-run state.
    This is an error if T is not blocked.  (Use thread_yield() to
    make the running thread ready.)
-
    This function does not preempt the running thread.  This can
    be important: if the caller had disabled interrupts itself,
    it may expect that it can atomically unblock a thread and
@@ -348,7 +349,6 @@ thread_get_recent_cpu (void) {
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
-
    The idle thread is initially put on the ready list by
    thread_start().  It will be scheduled once initially, at which
    point it initializes idle_thread, "up"s the semaphore passed
@@ -369,7 +369,6 @@ idle (void *idle_started_ UNUSED) {
 		thread_block ();
 
 		/* Re-enable interrupts and wait for the next one.
-
 		   The `sti' instruction disables interrupts until the
 		   completion of the next instruction, so these two
 		   instructions are executed atomically.  This atomicity is
@@ -377,7 +376,6 @@ idle (void *idle_started_ UNUSED) {
 		   between re-enabling interrupts and waiting for the next
 		   one to occur, wasting as much as one clock tick worth of
 		   time.
-
 		   See [IA32-v2a] "HLT", [IA32-v2b] "STI", and [IA32-v3a]
 		   7.11.1 "HLT Instruction". */
 		asm volatile ("sti; hlt" : : : "memory");
@@ -454,11 +452,9 @@ do_iret (struct intr_frame *tf) {
 
 /* Switching the thread by activating the new thread's page
    tables, and, if the previous thread is dying, destroying it.
-
    At this function's invocation, we just switched from thread
    PREV, the new thread is already running, and interrupts are
    still disabled.
-
    It's not safe to call printf() until the thread switch is
    complete.  In practice that means that printf()s should be
    added at the end of the function. */
@@ -587,4 +583,50 @@ allocate_tid (void) {
 	lock_release (&tid_lock);
 
 	return tid;
+}
+
+/*if thread is not idle, set wake_time in struct thread
+and then put it in sleep list, in order of wake_time. Block state. */
+void thread_sleep(uint64_t ticks){
+    struct thread *t = thread_current ();
+    enum intr_level init_intr;
+    if(t != idle_thread){
+        init_intr = intr_disable();
+        t -> wake_time = ticks;
+        t-> status = THREAD_BLOCKED;
+        list_insert_ordered (sleep_list, t->elem, early_wake, NULL);
+        schedule();
+        intr_set_level(init_intr);
+    }
+}
+
+/*compare wake_time*/
+bool early_wake(struct list_elem *x, struct list_elem *y, void *aux){
+    struct thread *thr_x = list_entry(x, struct thread, elem)
+    struct thread *thr_y = list_entry(y, struct thread, elem)
+    int64_t t_x = thr_x->wake_time;
+    int64_t t_y = thr_y->wake_time;
+    if(t_x < t_y){
+        return false;
+    }
+    else
+        return true;
+}
+
+/*scan through the sleep list, and decide whether there is a thread we
+should wake. if there is, wake it.*/
+void thread_wake(void){
+    while( !list_empty(sleep_list) ){
+        struct list_elem* last_elem = list_back(sleep_list);
+        struct thread *thr2wake = list_entry(last_elem, struct thread, elem);;
+        int64_t fir_wake = thr2wake -> wake_time;
+        if(fir_wake <= timer_ticks()){
+            last_elem = list_pop_back(sleep_list);
+            thr2wake = list_entry(last_elem, struct thread, elem);
+            thread_unblock(thr2wake);
+        }
+        else{
+            break;
+        }
+    }
 }
