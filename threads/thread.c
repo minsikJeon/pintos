@@ -587,49 +587,9 @@ allocate_tid (void) {
 
 /*if thread is not idle, set wake_time in struct thread
 and then put it in sleep list, in order of wake_time. Block state. */
-void thread_sleep(int64_t ticks){
-    struct thread *t = thread_current ();
-    enum intr_level init_intr;
-    if(t != idle_thread){
-        init_intr = intr_disable();
-        t -> wake_time = ticks;
-        list_insert_ordered (&sleep_list, &t->elem, early_wake, NULL);
-		t-> status = THREAD_BLOCKED;
-        schedule();
-        intr_set_level(init_intr);
-    }
-}
 
-/*compare wake_time*/
-bool early_wake(const struct list_elem *x, const struct list_elem *y, UNUSED){
-    const struct thread *thr_x = list_entry(x, struct thread, elem);
-    const struct thread *thr_y = list_entry(y, struct thread, elem);
-    int64_t t_x = thr_x->wake_time;
-    int64_t t_y = thr_y->wake_time;
-    if(t_x < t_y){
-        return false;
-    }
-    else
-        return true;
-}
 
-/*scan through the sleep list, and decide whether there is a thread we
-should wake. if there is, wake it.*/
-void thread_wake(void){
-    while( !list_empty(&sleep_list) ){
-        struct list_elem* last_elem = list_back(&sleep_list);
-        struct thread *thr2wake = list_entry(last_elem, struct thread, elem);;
-        int64_t first_wake = thr2wake -> wake_time;
-        if(first_wake <= timer_ticks()){
-            last_elem = list_pop_back(&sleep_list);
-            thr2wake = list_entry(last_elem, struct thread, elem);
-            thread_unblock(thr2wake);
-        }
-        else{
-            break;
-        }
-    }
-}
+
 
 
 
