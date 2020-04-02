@@ -73,10 +73,7 @@ static tid_t allocate_tid (void);
  * somewhere in the middle, this locates the curent thread. */
 #define running_thread() ((struct thread *) (pg_round_down (rrsp ())))
 
-/* list of blocked threads */
-static struct list sleep_list;
 
-static int64_t tick2wake;
 // Global descriptor table for the thread_start.
 // Because the gdt will be setup after the thread_init, we should
 // setup temporal gdt first.
@@ -110,17 +107,12 @@ thread_init (void) {
 	list_init (&ready_list);
 	list_init (&destruction_req);
 
-
-	/*------------------my implementation-------------------*/
-	list_init (&sleep_list);
-	/*------------------------------------------------------*/
-
-
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread ();
 	init_thread (initial_thread, "main", PRI_DEFAULT);
 	initial_thread->status = THREAD_RUNNING;
 	initial_thread->tid = allocate_tid ();
+	list_init(&sleep_list);
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -284,7 +276,7 @@ thread_exit (void) {
 	ASSERT (!intr_context ());
 
 #ifdef USERPROG
-	process_cleanup ();
+	process_exit ();
 #endif
 
 	/* Just set our status to dying and schedule another process.
@@ -525,7 +517,7 @@ thread_launch (struct thread *th) {
 static void
 do_schedule(int status) {
 	ASSERT (intr_get_level () == INTR_OFF);
-	ASSERT (thread_current() ->status == THREAD_RUNNING);
+	ASSERT (thread_current()->status == THREAD_RUNNING);
 	while (!list_empty (&destruction_req)) {
 		struct thread *victim =
 			list_entry (list_pop_front (&destruction_req), struct thread, elem);
@@ -586,122 +578,43 @@ allocate_tid (void) {
 	return tid;
 }
 
-/*----------------------1st implementation------------------*/
+static struct list sleep_list;
+static int64_t next_tick_to_awake;
 
-void thread_sleep(int64_t ticks){
-	struct thread *t= thread_current();
-
-	enum intr_level init_state;
-	init_state = intr_disable();
-	ASSERT(t!=idle_thread);
-	int64_t waketime = t->wake_time;
-	update_tick(waketime=ticks);
-	list_push_front(&sleep_list, &t->elem);
-	thread_block();
-	intr_set_level(init_state);
+void update_next_tick_to_awake(int64_t ticks){
+	next_tick_to_awake = (next_tick_to_awake > ticks) ? ticks : next_tick_to_awake;
 }
 
-void thread_wake(int64_t waketick){
-	struct list_elem *x=list_begin(&sleep_list);
-	struct thread *t;
-	tick2wake = INT64_MAX;
-	while(x!=list_end(&sleep_list)){
-		t= list_entry(x, struct thread, elem);
-		int64_t time = t->wake_time;
-		if(waketick < time){
-			update_tick(time);
-			x = list_next(x);
+int64_t get_next_tick_to_awake(void){
+	return next_tick_to_awake;
+}
+
+void thread_sleep(int64_t ticks){
+	struct thread *cur;
+
+	enum intr_level old_level;
+	cur = thread_current();
+	ASSERT(cur !=idle_thread);
+	update_next_tick_to_awake(cur->wakeup_tick = ticks);
+	list_push_back(&sleep_list,&cur->elem);
+	thread_block();
+	intr_set_level(old_level);
+}
+
+void thread_awake(int64_t wakeup_tick){
+	next_tick_to_awake = INT64_MAX;
+	struct list_elem *e;
+	e = list_begin(&sleep_list);
+	while(e!= list_end(&sleep_list)){
+		struct thread *t = list_entry(e, struct thread,elem);
+
+		if(wakeup_tick >= t->wakeup_tick){
+			e = list_remove(&t->elem);
+			thread_unblock(t);
 		}
 		else{
-			thread_unblock(t);
-			x = list_remove(&t->elem);
+			e=list_next(e);
+			update_next_tick_to_awake(t->wakeup_tick);
 		}
 	}
 }
-
-
-void update_tick(int64_t ticks){
-	if(tick2wake>ticks){
-		tick2wake = ticks;
-	}
-}
-
-int64_t get_tick_value(void){
-	return tick2wake;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*if thread is not idle, set wake_time in struct thread
-and then put it in sleep list, in order of wake_time. Block state. */
-
-/*
-void thread_sleep(int64_t ticks){
-    struct thread *t = thread_current ();
-    enum intr_level init_intr;
-	init_intr = intr_disable();
-	if(t != idle_thread){
-		t -> wake_time = ticks;
-		t-> status = THREAD_BLOCKED;
-		list_insert_ordered (&sleep_list, &t->elem, early_wake, NULL);
-		intr_set_level(init_intr);
-	}
-}*/
-
-/*compare wake_time*/
-/*
-bool early_wake(const struct list_elem* x, const struct list_elem* y, void *func UNUSED){
-    const struct thread *thr_x = list_entry(x, struct thread, elem);
-    const struct thread *thr_y = list_entry(y, struct thread, elem);
-    int64_t t_x = thr_x->wake_time;
-    int64_t t_y = thr_y->wake_time;
-    if(t_x < t_y){
-        return true;
-    }
-    else
-        return false;
-}*/
-
-/*scan through the sleep list, and decide whether there is a thread we
-should wake. if there is, wake it.*/
-/*
-void thread_wake(void){
-    while( !list_empty(&sleep_list) ){
-        struct list_elem* last_elem = list_front(&sleep_list);
-        struct thread *thr2wake = list_entry(last_elem, struct thread, elem);
-        int64_t first_wake = thr2wake -> wake_time;
-        if(first_wake <= ticks){
-            last_elem = list_pop_front(&sleep_list);
-            thr2wake = list_entry(last_elem, struct thread, elem);
-            thread_unblock(thr2wake);
-        }
-        else{
-            break;
-        }
-    }
-}*/
-
-
-
-
-
-
-
-/*----------------------2nd addition---------------------*/
-/*void priority_donation(void){
-
-}*/
