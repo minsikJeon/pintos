@@ -589,43 +589,39 @@ allocate_tid (void) {
 /*----------------------1st implementation------------------*/
 
 void thread_sleep(int64_t ticks){
-	struct thread *t;
+	struct thread *t= thread_current();
 
 	enum intr_level init_state;
 	init_state = intr_disable();
-
-	if(t!=idle_thread){
-		int64_t waketime = cur->wake_time;
-		update_tick(waketime);
-		list_push_front(&sleep_list, &t->elem);
-		thread_block();
-		intr_set_level(init_state);
-	}
+	ASSERT(t!=idle_thread);
+	int64_t waketime = t->wake_time;
+	update_tick(waketime=ticks);
+	list_push_front(&sleep_list, &t->elem);
+	thread_block();
+	intr_set_level(init_state);
 }
 
 void thread_wake(int64_t waketick){
 	struct list_elem *x=list_begin(&sleep_list);
 	struct thread *t;
-	tick2wake = INT32_MAX;
+	tick2wake = INT64_MAX;
 	while(x!=list_end(&sleep_list)){
 		t= list_entry(x, struct thread, elem);
-		if(waketick < t-> wake_time){
-			update_tick(t->wake_time);
-			x = x->next;
+		int64_t time = t->wake_time;
+		if(waketick < time){
+			update_tick(time);
+			x = list_next(x);
 		}
 		else{
-			list_remove(&t->elem);
 			thread_unblock(t);
+			x = list_remove(&t->elem);
 		}
 	}
 }
 
 
 void update_tick(int64_t ticks){
-	if(tick2wake<ticks){
-		tick2wake = tick2wake;
-	}
-	else{
+	if(tick2wake>ticks){
 		tick2wake = ticks;
 	}
 }
