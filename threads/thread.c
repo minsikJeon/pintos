@@ -111,7 +111,7 @@ thread_init (void) {
 
 
 	/*------------------my implementation-------------------*/
-	list_init (&sleep_list)
+	list_init (sleep_list);
 	/*------------------------------------------------------*/
 
 
@@ -637,5 +637,5 @@ void thread_wake(void){
 
 /*----------------------2nd addition---------------------*/
 void priority_donation(void){
-	
+
 }
