@@ -136,9 +136,9 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 /* new implementation */
-void thread_sleep(uint64_t);
+void thread_sleep(int64_t);
 void thread_wake(void);
-bool early_wake(struct list_elem*, struct list_elem*, void *);
+bool early_wake(const struct list_elem*, const struct list_elem*, void *);
 
 
 
@@ -150,4 +150,4 @@ bool early_wake(struct list_elem*, struct list_elem*, void *);
 
 void do_iret (struct intr_frame *tf);
 
-
+#endif /* threads/thread.h */
