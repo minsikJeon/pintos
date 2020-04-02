@@ -594,16 +594,16 @@ void thread_sleep(uint64_t ticks){
         init_intr = intr_disable();
         t -> wake_time = ticks;
         t-> status = THREAD_BLOCKED;
-        list_insert_ordered (sleep_list, t->elem, early_wake, NULL);
+        list_insert_ordered (sleep_list, &t->elem, early_wake, NULL);
         schedule();
         intr_set_level(init_intr);
     }
 }
 
 /*compare wake_time*/
-bool early_wake(struct list_elem *x, struct list_elem *y, void *aux){
-    struct thread *thr_x = list_entry(x, struct thread, elem)
-    struct thread *thr_y = list_entry(y, struct thread, elem)
+bool early_wake(const struct list_elem *x, const struct list_elem *y, void *aux){
+    const struct thread *thr_x = list_entry(x, struct thread, elem);
+    const struct thread *thr_y = list_entry(y, struct thread, elem);
     int64_t t_x = thr_x->wake_time;
     int64_t t_y = thr_y->wake_time;
     if(t_x < t_y){
@@ -636,6 +636,4 @@ void thread_wake(void){
 
 
 /*----------------------2nd addition---------------------*/
-void priority_donation(void){
 
-}
