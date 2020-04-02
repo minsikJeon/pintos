@@ -588,11 +588,11 @@ allocate_tid (void) {
 
 /*----------------------1st implementation------------------*/
 
-void thread_sleep(){
+void thread_sleep(int64_t ticks){
 	struct thread *t;
 
-	enum init_state = old_level;
-	old_level = intr_disable();
+	enum intr_level init_state;
+	init_state = intr_disable();
 
 	if(t!=idle_thread){
 		int64_t waketime = cur->wake_time;
@@ -626,7 +626,7 @@ void update_tick(int64_t ticks){
 		tick2wake = tick2wake;
 	}
 	else{
-		tick2wake = tick;
+		tick2wake = ticks;
 	}
 }
 

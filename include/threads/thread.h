@@ -101,6 +101,7 @@ struct thread {
 	unsigned magic;                     /* Detects stack overflow. */
     /*chooga*/
     int64_t wake_time;
+
 };
 
 /* If false (default), use round-robin scheduler.
@@ -136,19 +137,18 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 /* new implementation */
-void thread_sleep(int64_t);
-void thread_wake(void);
-bool early_wake(const struct list_elem*, const struct list_elem*, void *);
-
-
 
 
 
 /* ------------------- */
+void thread_sleep(int64_t tick);
+void thread_wake(int64_t tick);
 
+void update_tick(int64_t tick);
+int64_t get_tick_value(void);
+/*---------------------*/
 
 
 void do_iret (struct intr_frame *tf);
 
-
-#endif
+#endif /* threads/thread.h */
