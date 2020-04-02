@@ -603,14 +603,15 @@ void thread_sleep(int64_t ticks){
 	ASSERT(t !=idle_thread);
 	update_wake_tick(t->wake_time = ticks);
 	list_push_front(&sleep_list,&t->elem);
-	thread_block();
+	t->status = THREAD_BLOCKED;
+	schedule();
 	intr_set_level(init_state);
 }
 
 void thread_wake(int64_t wake_time){
-	early_wake = INT64_MAX;
 	struct thread *t;
 	struct list_elem *sleep_th = list_begin(&sleep_list);
+	early_wake = INT64_MAX;
 	while(sleep_th!= list_end(&sleep_list)){
 		t = list_entry(sleep_th, struct thread,elem);
 		if(wake_time < t->wake_time){

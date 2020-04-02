@@ -97,8 +97,9 @@ timer_elapsed (int64_t then) {
 void
 timer_sleep (int64_t ticks) {
 	int64_t start = timer_ticks ();
+	int64_t sleep_time = start+ticks;
 	ASSERT (intr_get_level () == INTR_ON);
-	thread_sleep(ticks + start);
+	thread_sleep(sleep_time);
 }
 
 /*
@@ -135,9 +136,10 @@ timer_print_stats (void) {
 static void
 timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;
-	if(get_next_tick_to_awake()<=ticks){
-		thread_awake(ticks);
+	if(get_early_wake()<=ticks){
+		thread_wake(ticks);
 	}
+	thread_tick();
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
@@ -194,4 +196,3 @@ real_time_sleep (int64_t num, int32_t denom) {
 		busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000));
 	}
 }
-
