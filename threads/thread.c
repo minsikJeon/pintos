@@ -74,7 +74,7 @@ static tid_t allocate_tid (void);
 #define running_thread() ((struct thread *) (pg_round_down (rrsp ())))
 
 /* list of blocked threads */
-static struct list* sleep_list;
+static struct list sleep_list;
 
 // Global descriptor table for the thread_start.
 // Because the gdt will be setup after the thread_init, we should
@@ -111,7 +111,7 @@ thread_init (void) {
 
 
 	/*------------------my implementation-------------------*/
-	list_init (sleep_list);
+	list_init (&sleep_list);
 	/*------------------------------------------------------*/
 
 
@@ -594,7 +594,7 @@ void thread_sleep(uint64_t ticks){
         init_intr = intr_disable();
         t -> wake_time = ticks;
         t-> status = THREAD_BLOCKED;
-        list_insert_ordered (sleep_list, &t->elem, early_wake, NULL);
+        list_insert_ordered (&sleep_list, &t->elem, early_wake, NULL);
         schedule();
         intr_set_level(init_intr);
     }
@@ -616,12 +616,12 @@ bool early_wake(const struct list_elem *x, const struct list_elem *y, void *aux)
 /*scan through the sleep list, and decide whether there is a thread we
 should wake. if there is, wake it.*/
 void thread_wake(void){
-    while( !list_empty(sleep_list) ){
-        struct list_elem* last_elem = list_back(sleep_list);
+    while( !list_empty(&sleep_list) ){
+        struct list_elem* last_elem = list_back(&sleep_list);
         struct thread *thr2wake = list_entry(last_elem, struct thread, elem);;
         int64_t fir_wake = thr2wake -> wake_time;
         if(fir_wake <= timer_ticks()){
-            last_elem = list_pop_back(sleep_list);
+            last_elem = list_pop_back(&sleep_list);
             thr2wake = list_entry(last_elem, struct thread, elem);
             thread_unblock(thr2wake);
         }
@@ -636,4 +636,6 @@ void thread_wake(void){
 
 
 /*----------------------2nd addition---------------------*/
+/*void priority_donation(void){
 
+}*/
