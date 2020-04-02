@@ -606,7 +606,7 @@ bool early_wake(const struct list_elem *x, const struct list_elem *y, UNUSED){
     const struct thread *thr_y = list_entry(y, struct thread, elem);
     int64_t t_x = thr_x->wake_time;
     int64_t t_y = thr_y->wake_time;
-    if(t_x > t_y){
+    if(t_x < t_y){
         return false;
     }
     else
