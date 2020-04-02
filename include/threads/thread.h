@@ -100,7 +100,7 @@ struct thread {
 	struct intr_frame tf;               /* Information for switching */
 	unsigned magic;                     /* Detects stack overflow. */
     /*chooga*/
-    int64_t wakeup_tick;
+    int64_t wake_time;
 
 };
 
@@ -137,15 +137,14 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 /* new implementation */
-void thread_sleep(int64_t ticks);
-void thread_awake(int64_t ticks);
 
-int64_t get_next_tick_to_awake(void);
-void update_next_tick_to_awake(int64_t ticks);
+int64_t get_early_wake(void);
+void update_wake_tick(int64_t ticks);
+void thread_sleep(int64_t ticks);
+void thread_wake(int64_t ticks);
 /*---------------------*/
 
 
 void do_iret (struct intr_frame *tf);
 
 #endif /* threads/thread.h */
-
