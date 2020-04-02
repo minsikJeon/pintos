@@ -27,7 +27,7 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
-
+static struct list sleep_list;
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -106,13 +106,14 @@ thread_init (void) {
 	lock_init (&tid_lock);
 	list_init (&ready_list);
 	list_init (&destruction_req);
+	list_init(&sleep_list);
 
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread ();
 	init_thread (initial_thread, "main", PRI_DEFAULT);
 	initial_thread->status = THREAD_RUNNING;
 	initial_thread->tid = allocate_tid ();
-	list_init(&sleep_list);
+	
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -579,42 +580,46 @@ allocate_tid (void) {
 }
 
 static struct list sleep_list;
-static int64_t next_tick_to_awake;
+static int64_t early_wake;
 
-void update_next_tick_to_awake(int64_t ticks){
-	next_tick_to_awake = (next_tick_to_awake > ticks) ? ticks : next_tick_to_awake;
+void update_wake_tick(int64_t ticks){
+	if(early_wake < ticks){
+		early_wake = early_wake;
+	}
+	else{
+		early_wake = ticks;
+	}
 }
 
-int64_t get_next_tick_to_awake(void){
-	return next_tick_to_awake;
+int64_t get_early_wake(void){
+	return early_wake;
 }
 
 void thread_sleep(int64_t ticks){
-	struct thread *cur;
+	struct thread *t= thread_current;
 
-	enum intr_level old_level;
-	cur = thread_current();
-	ASSERT(cur !=idle_thread);
-	update_next_tick_to_awake(cur->wakeup_tick = ticks);
-	list_push_back(&sleep_list,&cur->elem);
+	enum intr_level init_state;
+	init state = intr_disable();
+	ASSERT(t !=idle_thread);
+	update_wake_tick(cur->wake_time = ticks);
+	list_push_front(&sleep_list,&cur->elem);
 	thread_block();
-	intr_set_level(old_level);
+	intr_set_level(init_state);
 }
 
-void thread_awake(int64_t wakeup_tick){
-	next_tick_to_awake = INT64_MAX;
-	struct list_elem *e;
-	e = list_begin(&sleep_list);
+void thread_wake(int64_t wake_time){
+	early_wake = INT64_MAX;
+	struct thread *t;
+	struct list_elem *sleep_th = list_begin(&sleep_list);
 	while(e!= list_end(&sleep_list)){
-		struct thread *t = list_entry(e, struct thread,elem);
-
-		if(wakeup_tick >= t->wakeup_tick){
-			e = list_remove(&t->elem);
-			thread_unblock(t);
+		t = list_entry(sleep_th, struct thread,elem);
+		if(wake_time < t->wake_time){
+			update_wake_tick(t->wake_time);
+			sleep_th=sleep_th->next;
 		}
 		else{
-			e=list_next(e);
-			update_next_tick_to_awake(t->wakeup_tick);
+			sleep_th = list_remove(&t->elem);
+			thread_unblock(t);
 		}
 	}
 }
