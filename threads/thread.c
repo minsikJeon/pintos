@@ -402,6 +402,9 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
+    t->init_priority = priority;
+	t->wait_on_lock = NULL;
+	list_init(&donations);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
@@ -650,3 +653,66 @@ void run_most_prior(void){
 		}
 	}
 }
+
+
+/*------------------priority donation implementation--------------*/
+
+void donate_priority(void){
+	int depth_counter=0;
+	struct thread *t_init=thread_current();
+	struct lock *lock=t_init->wait_on_lock;
+	struct thread *t=lock->holder;
+
+	while(depth_counter<8){
+		/*check priority*/
+		if(t_init->priority<=t->priority){
+			break;
+		}
+		/*donate*/
+		t->priority = t_init->priority;
+
+		/*next level thread*/
+		depth_counter+=1;
+		if(t->wait_on_lock ==NULL){
+			break;
+		}
+		t_init = t;
+		lock = t->wait_on_lock;
+		t=lock->holder;
+	}
+}
+
+
+
+
+void remove_with_lock(struct lock *lock){
+	struct thread* t= thread_current();
+	struct thread* holder_thread = lock->holder;
+	struct list * don_list = holder_thread->donations;
+	struct list_elem* max_elem;
+	max_elem = list_max(don_list, donation_compare_priority, NULL);
+
+	list_remove(max_elem);
+}
+
+void refresh_priority(void){
+	struct thread* t= thread_current();
+	struct list * don_list = t->donations;
+	struct list_elem* max_elem;
+	if(list_empty(don_list)){
+		max_elem = list_max(don_list, donation_compare_priority, NULL);
+		struct thread *new_th = list_entry(max_elem,struct thread, donation_elem);
+		t->priority = new_th->priority;
+	}
+	else{
+		t->priority = t-> init_priority;
+	}
+	
+}
+
+
+bool donation_compare_priority(const struct list_elem *a, const struct list_elem *y, void *aux UNUSED){
+	return list_entry(a, struct thread, donation_elem)->priority
+	>list_entry(b,struct thread,donation_elem)->priority;
+}
+

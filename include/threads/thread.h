@@ -99,8 +99,15 @@ struct thread {
 	/* Owned by thread.c. */
 	struct intr_frame tf;               /* Information for switching */
 	unsigned magic;                     /* Detects stack overflow. */
-    /*chooga*/
+    /*-------------------implementation_alarmclock-------------*/
     int64_t wake_time;
+
+
+	/*-------------------implementation_ number2---------------*/
+	int init_priority;
+	struct lock *wait_on_lock;
+	struct list donations;
+	struct list_elem donation_elem;
 
 };
 
@@ -142,11 +149,19 @@ int64_t get_early_wake(void);
 void update_wake_tick(int64_t ticks);
 void thread_sleep(int64_t ticks);
 void thread_wake(int64_t ticks);
-/*---------------------*/
+/*------------implementation: priority scheduling---------*/
 
 void run_most_prior(void);
 bool thread_compare_priority(const struct list_elem *, const struct list_elem *, void *);
 
+
+/*------------implementation: priority donation---------------*/
+void donate_priority(void);
+void remove_with_lock(struct lock *lock);
+void refresh_priority(void);
+
+
+/*------------------------------------------------------------*/
 
 void do_iret (struct intr_frame *tf);
 
