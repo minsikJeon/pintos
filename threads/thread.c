@@ -633,8 +633,8 @@ void thread_wake(int64_t wake_time){
 bool thread_compare_priority(const struct list_elem *x, const struct list_elem *y, void *aux UNUSED){
 	struct thread* x_th=list_entry(x, struct thread, elem);
 	struct thread* y_th = list_entry(y, struct thread, elem);
-	int p_x = x_list -> priority;
-	int p_y = y_list -> priority;
+	int p_x = x_th -> priority;
+	int p_y = y_th -> priority;
 	return p_x > p_y;
 }
 
