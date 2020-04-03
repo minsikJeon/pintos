@@ -60,7 +60,7 @@ sema_down (struct semaphore *sema) {
 
 	old_level = intr_disable ();
 	while (sema->value == 0) {
-		list_push_back (&sema->waiters, &thread_current ()->elem);
+        list_insert_ordered(&sema->waiters, &thread_current()->elem, cmp_thread_priority, NULL);
 		thread_block ();
 	}
 	sema->value--;
@@ -101,10 +101,14 @@ sema_up (struct semaphore *sema) {
 	ASSERT (sema != NULL);
 
 	old_level = intr_disable ();
-	if (!list_empty (&sema->waiters))
+	if (!list_empty (&sema->waiters)){
+        list_sort(&sema->waiters,cmp_thread_priority,NULL);
 		thread_unblock (list_entry (list_pop_front (&sema->waiters),
 					struct thread, elem));
+    }
 	sema->value++;
+
+    /*priority preemption?*/
 	intr_set_level (old_level);
 }
 
@@ -162,6 +166,7 @@ lock_init (struct lock *lock) {
 	ASSERT (lock != NULL);
 
 	lock->holder = NULL;
+    lock->priority = PRI_MIN;
 	sema_init (&lock->semaphore, 1);
 }
 
@@ -178,22 +183,38 @@ lock_acquire (struct lock *lock) {
 	ASSERT (!intr_context ());
 	ASSERT (!lock_held_by_current_thread (lock));
 
+    struct lock *current_lock = lock;
+    struct thread *t_holder = lock->holder; // current holder thread
+    struct thread *t_current = thread_current();
 
-    if(lock->holder != NULL){
-        struct thread *t = thread_current();
-        t->wait_on_lock = lock;
-        /*to deal with multiple donation, remember priority of the past.
-        make a list of the struct thread, which made donation.*/
-        list_push_back(lock->holder->donations,t->donation_elem);
-        donate_priority();
+    // The current process is waiting on [lock]
+    t_current->waiting_lock = lock;
+
+    if(t_holder == NULL) {
+        current_lock->priority = t_current->priority;
     }
+
+    while (t_holder != NULL && t_holder->priority < t_current->priority) {
+        // Donate priority to [t_holder]
+        thread_priority_donate(t_holder, t_current->priority);
+
+        if (current_lock->priority < t_current->priority) {
+        current_lock->priority = t_current->priority;
+        }
+
+        current_lock = t_holder->waiting_lock;
+        if(current_lock == NULL) break;
+        t_holder = current_lock->holder;
+    }
+
+
 	sema_down (&lock->semaphore);
-
-
-
-   /*-------------------need to fix---------------------*/
-   thread_current()->wait_on_lock = NULL;
 	lock->holder = thread_current ();
+
+
+    lock->holder->waiting_lock = NULL; // no longer waiting
+    list_insert_ordered(&(lock->holder->locks), &(lock->lockelem),
+    cmp_lock_priority, NULL);
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -225,20 +246,27 @@ lock_release (struct lock *lock) {
 	ASSERT (lock_held_by_current_thread (lock));
 
 	lock->holder = NULL;
-
-
-
-    /*--------------my implementation-----------------*/
-    
-    remove_with_lock(lock);
-    refresh_priority();
-
-
-
-    /*-------------------till here -------------------*/
-
-
 	sema_up (&lock->semaphore);
+
+    struct thread *t_current = thread_current();
+
+    list_remove (&lock->lockelem);
+
+    // priority donation : restoration
+    if (list_empty(&t_current->locks)) {
+        // no more locks: there is no priority donors
+        // the original priority of the current thread
+        thread_priority_donate(t_current, t_current->original_priority);
+    }
+    else {
+        // donated: lookup the donors, find the highest priority lock
+        // then it should be the (newly updated) donated priority of t
+        list_sort(&(t_current->locks), cmp_lock_priority, NULL); // TODO why it is needed?
+        struct lock *highest_lock = list_entry( list_front(&(t_current->locks)), struct lock, lockelem );
+
+        thread_priority_donate(t_current, highest_lock->priority);
+
+    }
 }
 
 /* Returns true if the current thread holds LOCK, false
@@ -294,7 +322,7 @@ cond_wait (struct condition *cond, struct lock *lock) {
 	ASSERT (lock_held_by_current_thread (lock));
 
 	sema_init (&waiter.semaphore, 0);
-	list_push_back (&cond->waiters, &waiter.elem);
+	list_insert_ordered (&cond->waiters, &waiter.elem, cmp_sem_priority,NULL);
 	lock_release (lock);
 	sema_down (&waiter.semaphore);
 	lock_acquire (lock);
@@ -330,4 +358,28 @@ cond_broadcast (struct condition *cond, struct lock *lock) {
 
 	while (!list_empty (&cond->waiters))
 		cond_signal (cond, lock);
+}
+
+
+
+/*------------------newly implemented_priority scheduling--------*/
+bool cmp_sem_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED){
+    struct semaphore_elem *sa = list_entry(a, struct semaphore_elem, elem);
+    struct semaphore_elem *sb = list_entry(b, struct semaphore_elem, elem);
+
+    return sa->semaphore.priority > sb->semaphore.priority;
+}
+
+bool cmp_thread_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED){
+    const struct thread *ta = list_entry(a, struct thread, elem);
+    const struct thread *tb = list_entry(b, struct thread, elem);
+
+    return ta->priority > tb->priority;
+}
+
+bool cmp_lock_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED){
+    const struct lock *la = list_entry(a, struct lockelem, elem);
+    const struct lock *lb = list_entry(b, struct lockelem, elem);
+
+    return la->priority > lb->priority;
 }

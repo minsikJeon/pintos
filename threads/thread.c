@@ -306,8 +306,43 @@ thread_yield (void) {
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) {
-	thread_current ()->priority = new_priority;
+	struct thread *t_current = thread_current();
+	if (t_current->priority == t_current->original_priority) {
+		t_current->priority = new_priority;
+		t_current->original_priority = new_priority;
+	}
+	// otherwise, it has a donation: the original priority only should have changed
+	else {
+		t_current->original_priority = new_priority;
+	}
+
+	// if current thread gets its priority decreased, then yield
+	// (foremost entry in ready_list shall have the highest priority)
+	if (!list_empty (&ready_list)) {
+		struct thread *next = list_entry(list_begin(&ready_list), struct thread, elem);
+		if (next != NULL && next->priority > new_priority) {
+		thread_yield();
+		}
+	}
+
 	run_most_prior();
+}
+
+void
+thread_priority_donate(struct thread *target, int new_priority)
+{
+	// donation : change only current priority
+	target->priority = new_priority;
+
+	// if current thread gets its priority decreased, then yield
+	// (foremost entry in ready_list shall have the highest priority)
+	if (target == thread_current() && !list_empty (&ready_list)) {
+		struct thread *next = list_entry(list_begin(&ready_list), struct thread, elem);
+		if (next != NULL && next->priority > new_priority) {
+		thread_yield();
+		}
+	}
+
 }
 
 /* Returns the current thread's priority. */
@@ -402,9 +437,9 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
-    t->init_priority = priority;
-	t->wait_on_lock = NULL;
-	list_init(&donations);
+	t->original_priority = priority;
+	t->waiting_lock = NULL;
+	list_init(&t->locks);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
@@ -634,8 +669,8 @@ void thread_wake(int64_t wake_time){
 /*----------------priority scheduling implementation----------------*/
 
 bool thread_compare_priority(const struct list_elem *x, const struct list_elem *y, void *aux UNUSED){
-	struct thread* x_th=list_entry(x, struct thread, elem);
-	struct thread* y_th = list_entry(y, struct thread, elem);
+	const struct thread* x_th=list_entry(x, struct thread, elem);
+	const struct thread* y_th = list_entry(y, struct thread, elem);
 	int p_x = x_th -> priority;
 	int p_y = y_th -> priority;
 	return p_x > p_y;
@@ -655,64 +690,6 @@ void run_most_prior(void){
 }
 
 
-/*------------------priority donation implementation--------------*/
+/*-------------------------------------------------------------*/
 
-void donate_priority(void){
-	int depth_counter=0;
-	struct thread *t_init=thread_current();
-	struct lock *lock=t_init->wait_on_lock;
-	struct thread *t=lock->holder;
-
-	while(depth_counter<8){
-		/*check priority*/
-		if(t_init->priority<=t->priority){
-			break;
-		}
-		/*donate*/
-		t->priority = t_init->priority;
-
-		/*next level thread*/
-		depth_counter+=1;
-		if(t->wait_on_lock ==NULL){
-			break;
-		}
-		t_init = t;
-		lock = t->wait_on_lock;
-		t=lock->holder;
-	}
-}
-
-
-
-
-void remove_with_lock(struct lock *lock){
-	struct thread* t= thread_current();
-	struct thread* holder_thread = lock->holder;
-	struct list * don_list = holder_thread->donations;
-	struct list_elem* max_elem;
-	max_elem = list_max(don_list, donation_compare_priority, NULL);
-
-	list_remove(max_elem);
-}
-
-void refresh_priority(void){
-	struct thread* t= thread_current();
-	struct list * don_list = t->donations;
-	struct list_elem* max_elem;
-	if(list_empty(don_list)){
-		max_elem = list_max(don_list, donation_compare_priority, NULL);
-		struct thread *new_th = list_entry(max_elem,struct thread, donation_elem);
-		t->priority = new_th->priority;
-	}
-	else{
-		t->priority = t-> init_priority;
-	}
-	
-}
-
-
-bool donation_compare_priority(const struct list_elem *a, const struct list_elem *y, void *aux UNUSED){
-	return list_entry(a, struct thread, donation_elem)->priority
-	>list_entry(b,struct thread,donation_elem)->priority;
-}
 
