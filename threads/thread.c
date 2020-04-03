@@ -203,7 +203,7 @@ thread_create (const char *name, int priority,
 
 	/* Add to run queue. */
 	thread_unblock (t);
-	test_max_priority();
+	run_most_prior();
 	return tid;
 }
 
@@ -307,7 +307,7 @@ thread_yield (void) {
 void
 thread_set_priority (int new_priority) {
 	thread_current ()->priority = new_priority;
-	test_max_priority();
+	run_most_prior();
 }
 
 /* Returns the current thread's priority. */
@@ -630,15 +630,23 @@ void thread_wake(int64_t wake_time){
 
 /*----------------priority scheduling implementation----------------*/
 
-bool thread_compare_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED){
-	return list_entry (a,struct thread, elem)->priority
-	>list_entry(b,struct thread, elem)->priority;
+bool thread_compare_priority(const struct list_elem *x, const struct list_elem *y, void *aux UNUSED){
+	struct thread* x_th=list_entry(x, struct thread, elem);
+	struct thread* y_th = list_entry(y, struct thread, elem);
+	int p_x = x_list -> priority;
+	int p_y = y_list -> priority;
+	return p_x > p_y;
 }
 
-void test_max_priority(void){
-	if(!list_empty(&ready_list)&&
-	thread_current()->priority <
-	list_entry(list_front(&ready_list), struct thread, elem)->priority){
-		thread_yield();
+
+
+void run_most_prior(void){
+	struct thread *cur = thread_current();
+	struct thread *t;
+	if (list_empty(&ready_list)==false){
+		t = list_entry(list_front(&ready_list), struct thread, elem);
+		if(cur->priority < t->priority){
+			thread_yield();
+		}
 	}
 }
