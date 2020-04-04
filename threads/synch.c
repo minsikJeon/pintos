@@ -105,7 +105,7 @@ sema_up (struct semaphore *sema) {
     init_state = intr_disable ();
     sema->value++;
 	if(list_empty (&sema->waiters)==false){
-        list_sort(&sema->waiters,cmp_thread_priority,NULL);
+        list_sort(&(sema->waiters),cmp_thread_priority,NULL);
         front_list = list_pop_front(&sema->waiters);
 		t = list_entry (front_list,struct thread, elem);
         thread_unblock(t);
@@ -209,14 +209,11 @@ lock_acquire (struct lock *lock) {
         if(t_hold->lock_to_wait == NULL){
             break;
         }
-
         cur_lock = t_hold->lock_to_wait;
-        else{
-            t_hold = cur_lock->holder;
-            cur_pr = t->priority;
-            if(t_hold == NULL){
-                break;
-            }
+        t_hold = cur_lock->holder;
+        cur_pr = t->priority;
+        if(t_hold == NULL){
+            break;
         }
     }
 
@@ -259,7 +256,7 @@ lock_release (struct lock *lock) {
 
 	lock->holder = NULL;
     struct thread *t = thread_current();
-    struct lock *max_pr_lock
+    struct lock *max_pr_lock;
 
 	sema_up (&lock->semaphore);
     list_remove (&lock->elem_lck);
