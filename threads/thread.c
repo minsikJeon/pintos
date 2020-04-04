@@ -237,6 +237,9 @@ thread_unblock (struct thread *t) {
 	ASSERT (t->status == THREAD_BLOCKED);
 	list_insert_ordered (&ready_list, &t->elem, thread_compare_priority, NULL);
 	t->status = THREAD_READY;
+	if (thread_current() != idle_thread && thread_current()->priority < t->priority )
+		thread_yield();
+		
 	intr_set_level (old_level);
 }
 
@@ -305,44 +308,36 @@ thread_yield (void) {
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
-thread_set_priority (int new_priority) {
-	struct thread *t_current = thread_current();
-	if (t_current->priority == t_current->original_priority) {
-		t_current->priority = new_priority;
-		t_current->original_priority = new_priority;
+thread_set_priority (int pr_val) {
+	struct thread *t = thread_current();
+	if (t->priority == t->init_priority) {
+		t->priority = pr_val;
+		t->init_priority = pr_val;
 	}
-	// otherwise, it has a donation: the original priority only should have changed
 	else {
-		t_current->original_priority = new_priority;
+		t->init_priority = pr_val;
 	}
-
-	// if current thread gets its priority decreased, then yield
-	// (foremost entry in ready_list shall have the highest priority)
 	if (!list_empty (&ready_list)) {
-		struct thread *next = list_entry(list_begin(&ready_list), struct thread, elem);
-		if (next != NULL && next->priority > new_priority) {
+		struct thread *after = list_entry(list_begin(&ready_list), struct thread, elem);
+		if (after != NULL && next->priority > pr_val) {
 		thread_yield();
 		}
 	}
-
 	run_most_prior();
 }
 
 void
-thread_priority_donate(struct thread *target, int new_priority)
+priority_donation(struct thread *t, int pr_val)
 {
-	// donation : change only current priority
-	target->priority = new_priority;
+	t->priority = pr_val;
+    struct thread *cur_th = thread_current();
 
-	// if current thread gets its priority decreased, then yield
-	// (foremost entry in ready_list shall have the highest priority)
-	if (target == thread_current() && !list_empty (&ready_list)) {
-		struct thread *next = list_entry(list_begin(&ready_list), struct thread, elem);
-		if (next != NULL && next->priority > new_priority) {
+	if (t == cur_th && !list_empty (&ready_list)) {
+		struct thread *after = list_entry(list_begin(&ready_list), struct thread, elem);
+		if (after != NULL && after->priority > pr_val) {
 		thread_yield();
 		}
 	}
-
 }
 
 /* Returns the current thread's priority. */
@@ -437,8 +432,8 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
-	t->original_priority = priority;
-	t->waiting_lock = NULL;
+	t->init_priority = priority;
+	t->lock_to_wait = NULL;
 	list_init(&t->locks);
 }
 

@@ -192,20 +192,20 @@ lock_acquire (struct lock *lock) {
     struct thread *t_hold = lock->holder; 
     int cur_pr = t->priority;
 
-    t->waiting_lock = cur_lock;
+    t->lock_to_wait = cur_lock;
 
     if(t_hold == NULL) {
         cur_lock->priority = cur_pr;
     }
 
     while (t_hold != NULL && t_hold->priority < cur_pr) {
-        thread_priority_donate(t_hold, cur_pr);
+        priority_donation(t_hold, cur_pr);
 
         if (cur_lock->priority < cur_pr) {
             cur_lock->priority = cur_pr;
         }
 
-        cur_lock = t_hold->waiting_lock;
+        cur_lock = t_hold->lock_to_wait;
         if(cur_lock == NULL){
             break;
         }
@@ -218,7 +218,7 @@ lock_acquire (struct lock *lock) {
 	lock->holder = thread_current ();
 
 
-    lock->holder->waiting_lock = NULL;
+    lock->holder->lock_to_wait = NULL;
     list_insert_ordered(&lock->holder->locks, &lock->elem_lck,cmp_lock_priority, NULL);
 }
 
@@ -258,12 +258,12 @@ lock_release (struct lock *lock) {
 
 
     if (list_empty(&t_current->locks)) {
-        thread_priority_donate(t_current, t_current->original_priority);
+        priority_donation(t_current, t_current->init_priority);
     }
     else {
         list_sort(&(t_current->locks), cmp_lock_priority, NULL);
         struct lock *highest_lock = list_entry( list_front(&(t_current->locks)), struct lock, elem_lck );
-        thread_priority_donate(t_current, highest_lock->priority);
+        priority_donation(t_current, highest_lock->priority);
 
     }
 }

@@ -88,12 +88,17 @@ struct thread {
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
 
-	int original_priority;
+    /*alarm_clock*/
     int64_t wake_time;
+
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
-	struct lock *waiting_lock;
-	struct list locks;
+
+    /*priority scheduling*/
+	struct lock *lock_to_wait;
+	struct list lock;
+    int init_priority;
+
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
@@ -151,7 +156,7 @@ void thread_wake(int64_t ticks);
 void run_most_prior(void);
 bool thread_compare_priority(const struct list_elem *, const struct list_elem *, void *);
 /*--------------------*/
-void thread_priority_donate(struct thread *, int);
+void priority_donation(struct thread *, int);
 
 
 void do_iret (struct intr_frame *tf);
