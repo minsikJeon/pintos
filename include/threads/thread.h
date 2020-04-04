@@ -90,13 +90,12 @@ struct thread {
 
     /*alarm_clock*/
     int64_t wake_time;
-
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
 
     /*priority scheduling*/
 	struct lock *lock_to_wait;
-	struct list lock;
+	struct list locks;
     int init_priority;
 
 

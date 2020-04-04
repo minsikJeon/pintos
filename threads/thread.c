@@ -335,11 +335,10 @@ priority_donation(struct thread *t, int pr_val)
 	if (t == cur_th){
         if(!list_empty (&ready_list)) {
             after = list_entry(list_begin(&ready_list), struct thread, elem);
-            if(after ==NULL){
-                break;
-            }
-            if (after->priority > pr_val) {
-                thread_yield();
+            if(after !=NULL){
+                if (after->priority > pr_val) {
+                    thread_yield();
+                }
             }
         }
 	}
