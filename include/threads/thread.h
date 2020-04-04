@@ -151,7 +151,7 @@ void thread_wake(int64_t ticks);
 void run_most_prior(void);
 bool thread_compare_priority(const struct list_elem *, const struct list_elem *, void *);
 /*--------------------*/
-
+void thread_priority_donate(struct thread *, int);
 
 
 void do_iret (struct intr_frame *tf);
