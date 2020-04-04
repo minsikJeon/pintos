@@ -23,8 +23,10 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+#define NICE_MIN -20
 #define NICE_DEFAULT 0
-#define RECENT_CPU_DEFAULT 0;
+#define NICE_MAX 20
+#define RECENT_CPU_DEFAULT 0
 /* A kernel thread or user process.
  *
  * Each thread structure is stored in its own 4 kB page.  The
@@ -109,7 +111,7 @@ struct thread {
 	struct intr_frame tf;               /* Information for switching */
 	unsigned magic;                     /* Detects stack overflow. */
     /*chooga*/
-
+	struct list_elem allelem;
 	int nice;
 	int recent_cpu;
 
