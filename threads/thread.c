@@ -310,18 +310,18 @@ thread_yield (void) {
 void
 thread_set_priority (int pr_val) {
 	struct thread *t = thread_current();
+    struct thread *after;
 	if (t->priority == t->init_priority) {
 		t->priority = pr_val;
-		t->init_priority = pr_val;
 	}
-	else {
-		t->init_priority = pr_val;
-	}
+    t->init_priority = pr_val;
 	if (!list_empty (&ready_list)) {
-		struct thread *after = list_entry(list_begin(&ready_list), struct thread, elem);
-		if (after != NULL && next->priority > pr_val) {
-		thread_yield();
-		}
+		after = list_entry(list_begin(&ready_list), struct thread, elem);
+		if (after != NULL){
+            if(after->priority > pr_val) {
+		        thread_yield();
+		    }
+        }
 	}
 	run_most_prior();
 }
@@ -331,12 +331,17 @@ priority_donation(struct thread *t, int pr_val)
 {
 	t->priority = pr_val;
     struct thread *cur_th = thread_current();
-
-	if (t == cur_th && !list_empty (&ready_list)) {
-		struct thread *after = list_entry(list_begin(&ready_list), struct thread, elem);
-		if (after != NULL && after->priority > pr_val) {
-		thread_yield();
-		}
+    struct thread *after;
+	if (t == cur_th){
+        if(!list_empty (&ready_list)) {
+            after = list_entry(list_begin(&ready_list), struct thread, elem);
+            if(after ==NULL){
+                break;
+            }
+            if (after->priority > pr_val) {
+                thread_yield();
+            }
+        }
 	}
 }
 
