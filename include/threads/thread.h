@@ -27,8 +27,7 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
-#define NICE_DEFAULT 0
-#define RECENT_CPU_DEFAULT 0;
+
 /* A kernel thread or user process.
  *
  * Each thread structure is stored in its own 4 kB page.  The
@@ -118,8 +117,6 @@ struct thread {
 	unsigned magic;                     /* Detects stack overflow. */
     /*chooga*/
 
-	int nice;
-	int recent_cpu;
 
 };
 
@@ -167,19 +164,6 @@ void run_most_prior(void);
 bool thread_compare_priority(const struct list_elem *, const struct list_elem *, void *);
 /*--------------------*/
 void priority_donation(struct thread *, int);
-
-
-/* My Implementation */
-void sort_thread_list (struct list *l);
-void thread_set_priority_other (struct thread *curr, int new_priority, bool forced);
-void thread_yield_head (struct thread *curr);
-
-void thread_calculate_load_avg (void);
-void thread_calculate_recent_cpu (void);
-void thread_calculate_priority (void);
-void thread_calculate_recent_cpu_for_all (void);
-void thread_calculate_priority_for_all (void);
-/* == My Implementation */
 
 
 void do_iret (struct intr_frame *tf);
