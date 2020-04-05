@@ -72,7 +72,7 @@ static tid_t allocate_tid (void);
 
 
 /*---------------My implementation-------------*/
-static int thread_get_donated_priority(struct thread *t);
+//static int thread_get_donated_priority(struct thread *t);
 static void calculate_priority(struct thread *t, void *aux UNUSED);
 /*---------------------------------------------*/
 
@@ -166,7 +166,7 @@ thread_tick (void) {
 		kernel_ticks++;
 	
 	/*my implementation*/
-		if(thread_mlfqs==TRUE){
+		if(thread_mlfqs==true){
 			t->recent_cpu = ADD_FI(t->recent_cpu,1);
 		}
 	/*-----------------*/
@@ -188,7 +188,7 @@ thread_tick (void) {
 			//calculate recent_cpu
 			int64_t tmp_r_cpu = list_entry(e,struct thread, allelem)->recent_cpu;
 			int32_t tmp_nice = list_entry(e, struct thread, allelem)->nice;
-			tmp_r_cpu = ADD_FI(MUL_F(DIV_F(load_Avg*2,ADD_FI(load_avg*2,1)),tmp_r_cpu),tmp_nice);
+			tmp_r_cpu = ADD_FI(MUL_F(DIV_F(load_avg*2,ADD_FI(load_avg*2,1)),tmp_r_cpu),tmp_nice);
 			list_entry(e,struct thread, allelem)->recent_cpu = tmp_r_cpu;
 		}
 	}
@@ -370,7 +370,7 @@ thread_yield (void) {
 
 
 /*---------------My implementation---------------*/
-void thread_foreach( thread_action_func *func, void aux){
+void thread_foreach( thread_action_func *func, void *aux){
 	struct list_elem *e;
 	ASSERT(intr_get_level()==INTR_OFF);
 
