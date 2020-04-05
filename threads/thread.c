@@ -11,7 +11,6 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "threads/fixed-point.h"
-#include "devices/timer.h"
 #include "intrinsic.h"
 #ifdef USERPROG
 #include "userprog/process.h"
@@ -121,8 +120,6 @@ thread_init (void) {
 	list_init (&ready_list);
 	list_init (&destruction_req);
 	list_init(&sleep_list);
-
-
 	list_init(&all_list);
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread ();
@@ -197,7 +194,7 @@ thread_tick (void) {
 		}
 	}
 
-	if(thread_mlfqs && (timer_ticks() % 4==0)){
+	if(thread_mlfqs && (timer_ticks()%4==0)){
 		thread_foreach(calculate_priority, NULL);
 	}
 	/*------------------------------------------*/
@@ -303,7 +300,7 @@ thread_unblock (struct thread *t) {
 	ASSERT (t->status == THREAD_BLOCKED);
 	list_insert_ordered (&ready_list, &t->elem, thread_compare_priority, NULL);
 	t->status = THREAD_READY;
-	if (thread_current() != idle_thread && !intr_context() )
+	if (thread_current() != idle_thread && thread_current()->priority < t->priority && !intr_context())
 		thread_yield();
 		
 	intr_set_level (old_level);
@@ -379,11 +376,13 @@ void thread_foreach( thread_action_func *func, void *aux){
 	ASSERT(intr_get_level()==INTR_OFF);
 	enum intr_level old_level;
 	old_level = intr_disable();
+
 	for(e=list_begin(&all_list);e!=list_end(&all_list);e=list_next(e)){
 		struct thread *t = list_entry(e,struct thread,allelem);
 		func(t,aux);
 	}
 	intr_set_level(old_level);
+
 }
 /*-----------------------------------------------*/
 

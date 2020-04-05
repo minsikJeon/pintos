@@ -98,8 +98,12 @@ void
 timer_sleep (int64_t ticks) {
 	int64_t start = timer_ticks ();
 	int64_t sleep_time = start+ticks;
+	enum intr_level old_level;
+
 	ASSERT (intr_get_level () == INTR_ON);
+	old_level = intr_disable();
 	thread_sleep(sleep_time);
+	intr_set_level(old_level);
 }
 
 /*
