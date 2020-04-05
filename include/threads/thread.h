@@ -23,10 +23,12 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
-#define NICE_MIN -20
-#define NICE_DEFAULT 0
+
+/*Thread nice values. */
 #define NICE_MAX 20
-#define RECENT_CPU_DEFAULT 0
+#define NICE_DEFAULT 0
+#define NICE_MIN -20
+
 /* A kernel thread or user process.
  *
  * Each thread structure is stored in its own 4 kB page.  The
@@ -101,6 +103,13 @@ struct thread {
 	struct list locks;
     int init_priority;
 
+	/*--------------------My implementation----------------*/
+	int32_t nice;
+	int64_t recent_cpu;
+
+	struct list_elem allelem;
+	/*-----------------------------------------------------*/
+
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
@@ -111,9 +120,7 @@ struct thread {
 	struct intr_frame tf;               /* Information for switching */
 	unsigned magic;                     /* Detects stack overflow. */
     /*chooga*/
-	struct list_elem allelem;
-	int nice;
-	int recent_cpu;
+
 
 };
 
@@ -162,19 +169,10 @@ bool thread_compare_priority(const struct list_elem *, const struct list_elem *,
 /*--------------------*/
 void priority_donation(struct thread *, int);
 
-
-/* My Implementation */
-void sort_thread_list (struct list *l);
-void thread_set_priority_other (struct thread *curr, int new_priority, bool forced);
-void thread_yield_head (struct thread *curr);
-
-void thread_calculate_load_avg (void);
-void thread_calculate_recent_cpu (void);
-void thread_calculate_priority (void);
-void thread_calculate_recent_cpu_for_all (void);
-void thread_calculate_priority_for_all (void);
-/* == My Implementation */
-
+/*myimplementation*/
+typedef void thread_action_func(struct thread *t, void *aux);
+void thread_foreach( thread_action_func *, void *);
+/*------------------*/
 
 void do_iret (struct intr_frame *tf);
 
