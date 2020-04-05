@@ -3,7 +3,7 @@
 
 #define SHIFT 1<<14
 
-
+//convert integer into float
 #define I2F(x) ((x)*(SHIFT))
 
 // convert x to integer(rounding toward zero)
