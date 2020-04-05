@@ -176,10 +176,10 @@ thread_tick (void) {
 		intr_yield_on_return ();
 
 	/*------------My implementation-------------*/
-	if(thread_mlfqs && (timer_ticks() %TIMER_FREQ == 0)){
+	if(thread_mlfqs && (timer_ticks() % 100 == 0)){
 		int ready_threads = list_size(&ready_list);
 		if(thread_current()!= idle_thread){
-			ready_thread+=1;
+			ready_threads+=1;
 		}
 		load_avg = MUL_F(I2F(59)/60,load_avg) + (I2F(1)/60)*ready_threads;
 
