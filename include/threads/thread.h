@@ -108,8 +108,8 @@ struct thread {
     int init_priority;
 
 	/*--------------------My implementation----------------*/
-	int32_t nice;
-	int64_t recent_cpu;
+	int nice;
+	int recent_cpu;
 
 	struct list_elem allelem;
 	/*-----------------------------------------------------*/
