@@ -1,22 +1,38 @@
-#ifndef THREADS_FIXED_POINT_H
-#define THREADS_FIXED_POINT_H
+#ifndef FIXED_POINT_H
+#define FIXED_POINT_H
 
-#define fp_t int
-#define P 17
-#define Q 14
-#define FRACTION 1<<(Q)
+#define SHIFT 1<<14
 
-#if P + Q != 31
-#error "FATAL ERROR: P + Q != 31."
-#endif
 
-#define INT_ADD(x, n) (x) + (n) * (FRACTION)
-#define INT_SUB(x, n) (x) - (n) * (FRACTION)
-#define CONVERT_TO_FP(x) (x) * (FRACTION)
-#define CONVERT_TO_INT_ZERO(x) (x) / (FRACTION)
-#define CONVERT_TO_INT_NEAR(x) ((x) >= 0 ? ((x) + (FRACTION) / 2) / (FRACTION) : ((x) - (FRACTION) / 2) / (FRACTION))
-#define FP_MUL(x, y) ((int64_t)(x)) * (y) / (FRACTION)
-#define FP_DIV(x, y) ((int64_t)(x)) * (FRACTION) / (y)
+#define I2F(x) ((x)*(SHIFT))
 
+// convert x to integer(rounding toward zero)
+#define F2I_R0 (x) ((x)/(SHIFT))
+//convert x to integer(rounding to nearest)
+#define F2I_RN (x) ((x)>=0 ? ((x)+(SHIFT)/2)/(SHIFT) : ((x)-(SHIFT)/2)/(SHIFT))
+
+//add x and y (FLOAT)
+#define ADD_F (x,y) ((x)+(y))
+
+// subtract y from x (float)
+#define SUB_F (x,y) ((x)-(y))
+
+// float + int
+#define ADD_FI (x,n) ((x)+(n)*(SHIFT))
+
+//float - int
+#define SUB_FI (x,n) ((x)-(n)*(SHIFT))
+
+//multiply x by y
+#define MUL_F (x,y) ((((int64_t)(x))*(y))/(SHIFT))
+
+//multiply x by n(int)
+#define MUL_FI (x,n) ((x)*(n))
+
+//divide x by y
+#define DIV_F (x,y) ((((int64_t)(x))*(SHIFT))/y)
+
+//divide x by n(int)
+#define DIV_FI (x, n) ((x)/(n))
 
 #endif /* threads/fixed-point.h */
