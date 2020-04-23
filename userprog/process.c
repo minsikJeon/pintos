@@ -183,24 +183,18 @@ process_exec (void *f_name) {
 	process_cleanup ();
 
     /*-------------My Implementation----------------*/
-    char **parse;
-	char * save_ptr;
-    parse[0] = strtok_r(file_name," ",&save_ptr);
-    char *fir_name = parse[0];
-    int i=0;
-    while(parse[i]!=NULL){
-        i++;
-        parse[i] = strtok_r(NULL, " ", &save_ptr);
-    }
-    int count = i+1;
+
+	char *first_name;
+	char *save_ptr;
+	first_name = strtok_r(file_name," ",&save_ptr);
 
     /*-------------Implementation End---------------*/
 
 	/* And then load the binary */
-	success = load (fir_name, &_if);
+	success = load (file_name, &_if);
 
 	/* If load failed, quit. */
-	palloc_free_page (file_name);
+	palloc_free_page (first_name);
 	if (!success)
 		return -1;
 
@@ -362,8 +356,24 @@ load (const char *file_name, struct intr_frame *if_) {
 		goto done;
 	process_activate (thread_current ());
 
+
+	/*---------------My Implementation-------------*/
+	//argument parsing
+
+    char **parse;
+	char *save_ptr;
+	char *copy_name;
+	strlcpy(copy_name,file_name,PGSIZE);
+    parse[0] = strtok_r(copy_name," ",&save_ptr);
+    int count=0;
+    while(parse[count]!=NULL){
+        count++;
+        parse[count] = strtok_r(NULL, " ", &save_ptr);
+    }
+
+	/*---------------Implementation End------------*/
 	/* Open executable file. */
-	file = filesys_open (file_name);
+	file = filesys_open (parse[0]);
 	if (file == NULL) {
 		printf ("load: %s: open failed\n", file_name);
 		goto done;
@@ -443,6 +453,37 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
+	/*-----------My Implementation-------------*/
+	uintptr_t *rsp = if_->rsp;
+	rsp = USER_STACK;
+    int *arg_addr;
+    int addr, i;
+    for(i=0;i<count;i++){
+        addr= count-i-1;
+        rsp -= strlen(parse[addr]+1);
+        memcpy(rsp, parse[addr], strlen(parse[addr]+1));
+        arg_addr[addr]=(uint64_t)(rsp);
+    }
+    /*word align*/
+    while(rsp & 7 !=0){
+        rsp--;
+    }
+    /*parse[count]*/
+    rsp -= 8;
+    *rsp = 0;
+    /*push program name and addr*/
+    for(i=0;i<count;i++){
+        rsp -= 8;
+        *rsp = arg_addr[count-i-1];
+    }
+    /*%rsi to argv*/
+	if_->R.rsi = rsp;
+    /*%rdi to argc*/
+	if_->R.rdi = count;
+    /*push fake address 0*/
+    rsp -= 8;
+    *rsp=0;
+	/*-----------Implementation End------------*/
 
 	success = true;
 
@@ -665,40 +706,3 @@ setup_stack (struct intr_frame *if_) {
 #endif /* VM */
 
 
-
-/*--------------My implementatoin---------------*/
-
-void argument_stack(char **parse, int count, struct intr_frame *_if){
-    /*push program name and char*/
-	int *rsp = KERN_BASE;
-    int *arg_addr;
-    int addr, i;
-    for(i=0;i<count;i++){
-        addr= count-i-1;
-        rsp -= strlen(parse[addr]+1);
-        memcpy(rsp, parse[addr], strlen(parse[addr]+1));
-        arg_addr[addr]=rsp;
-    }
-    /*word align*/
-    while(rsp%8!=0){
-        rsp--;
-    }
-    /*parse[count]*/
-    rsp -= 8;
-    *rsp = 0;
-    /*push program name and addr*/
-    for(i=0;i<count;i++){
-        rsp -= 8;
-        *rsp = arg_addr[count-i-1];
-    }
-    /*%rsi to argv*/
-	_if.R.rsi = rsp;
-    /*%rdi to argc*/
-	_if.R.rdi = count;
-    /*push fake address 0*/
-    rsp -= 8;
-    *rsp=0;
-}
-
-
-/*--------------My implementation---------------*/
