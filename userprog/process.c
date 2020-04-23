@@ -198,13 +198,6 @@ process_exec (void *f_name) {
 	if (!success)
 		return -1;
 
-	/*---------------My Implementation--------------*/
-    argument_stack(parse, count, &_if);
-	//hex_dump(_if.rsp, _if.rsp, PHYS_BASE - _if.rsp, true);
-
-
-	/*---------------Implementation End-------------*/
-
 	/* Start switched process. */
 	do_iret (&_if);
 	NOT_REACHED ();
@@ -457,7 +450,7 @@ load (const char *file_name, struct intr_frame *if_) {
 	uintptr_t *rsp = if_->rsp;
 	rsp = USER_STACK;
     int *arg_addr;
-    int addr, i;
+    int addr;
     for(i=0;i<count;i++){
         addr= count-i-1;
         rsp -= strlen(parse[addr]+1);
@@ -465,7 +458,7 @@ load (const char *file_name, struct intr_frame *if_) {
         arg_addr[addr]=(uint64_t)(rsp);
     }
     /*word align*/
-    while(rsp & 7 !=0){
+    while((uint64_t)(rsp) & 7 !=0){
         rsp--;
     }
     /*parse[count]*/
@@ -477,7 +470,7 @@ load (const char *file_name, struct intr_frame *if_) {
         *rsp = arg_addr[count-i-1];
     }
     /*%rsi to argv*/
-	if_->R.rsi = rsp;
+	if_->R.rsi = (uint64_t)(rsp);
     /*%rdi to argc*/
 	if_->R.rdi = count;
     /*push fake address 0*/
