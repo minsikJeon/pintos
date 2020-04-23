@@ -10,6 +10,11 @@
 #include "threads/palloc.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+<<<<<<< Updated upstream
+=======
+#include "threads/fixed-point.h"
+#include "devices/timer.h"
+>>>>>>> Stashed changes
 #include "intrinsic.h"
 #ifdef USERPROG
 #include "userprog/process.h"
@@ -131,6 +136,10 @@ thread_start (void) {
 	/* Wait for the idle thread to initialize idle_thread. */
 	sema_down (&idle_started);
 }
+<<<<<<< Updated upstream
+=======
+  /* Enforce preemption. */
+>>>>>>> Stashed changes
 
 /* Called by the timer interrupt handler at each timer tick.
    Thus, this function runs in an external interrupt context. */
