@@ -51,8 +51,8 @@ process_create_initd (const char *file_name) {
 	strlcpy (fn_copy, file_name, PGSIZE);
 
     /*-----------------My implementation-------------------*/
-
-    char *fir_name = strtok_r(file_name," ");
+	char *save_ptr;
+    char *fir_name = strtok_r(fn_copy," ",&save_ptr);
 
     /*-----------------My implementation-------------------*/
 
@@ -203,7 +203,7 @@ process_exec (void *f_name) {
 	if (!success)
 		return -1;
 
-    argument_stack(parse, count, &if_);
+    argument_stack(parse, count, &_if);
 	hex_dump(if_.rsp, if_.rsp, PHYS_BASE - if_.rsp, true);
 	/* Start switched process. */
 	do_iret (&_if);
@@ -662,36 +662,36 @@ setup_stack (struct intr_frame *if_) {
 
 /*--------------My implementatoin---------------*/
 
-void argument_stack(char **parse, int count, struct intr_frame **_if){
+void argument_stack(char **parse, int count, struct intr_frame *_if){
     /*push program name and char*/
-	int **rsp = _if->rsp;
-    int **arg_addr;
-    int addr;
-    for(int i=0;i<count;i++){
+	int *rsp = _if->rsp;
+    int *arg_addr;
+    int addr, i;
+    for(i=0;i<count;i++){
         addr= count-i-1;
-        *rsp -= strlen(parse[addr]+1);
-        memcpy(*rsp, parse[addr], strlen(parse[addr]+1));
-        arg_addr[addr]=*rsp;
+        rsp -= strlen(parse[addr]+1);
+        memcpy(rsp, parse[addr], strlen(parse[addr]+1));
+        arg_addr[addr]=rsp;
     }
     /*word align*/
-    while(*rsp%8!=0){
-        *rsp--;
+    while(rsp%8!=0){
+        rsp--;
     }
     /*parse[count]*/
-    *rsp -= 8;
-    **rsp = 0;
+    rsp -= 8;
+    *rsp = 0;
     /*push program name and addr*/
     for(i=0;i<count;i++){
-        *rsp -= 8;
-        **rsp = arg_addr[count-i-1];
+        rsp -= 8;
+        *rsp = arg_addr[count-i-1];
     }
     /*%rsi to argv*/
-	_if->R->rsi = *rsp;
+	_if->R->rsi = rsp;
     /*%rdi to argc*/
 	_if->R->rdi = count;
     /*push fake address 0*/
-    *rsp -= 8;
-    **rsp=0;
+    rsp -= 8;
+    *rsp=0;
 }
 
 
