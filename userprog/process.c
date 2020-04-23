@@ -184,16 +184,17 @@ process_exec (void *f_name) {
 
     /*-------------My Implementation----------------*/
     char **parse;
-    parse[0] = strtok_r(file_name," ");
+	char * save_ptr;
+    parse[0] = strtok_r(file_name," ",&save_ptr);
     char *fir_name = parse[0];
     int i=0;
     while(parse[i]!=NULL){
         i++;
-        parse[i] = strtok(NULL, " ");
+        parse[i] = strtok_r(NULL, " ", &save_ptr);
     }
     int count = i+1;
 
-    /*-------------My Implementation----------------*/
+    /*-------------Implementation End---------------*/
 
 	/* And then load the binary */
 	success = load (fir_name, &_if);
@@ -203,8 +204,13 @@ process_exec (void *f_name) {
 	if (!success)
 		return -1;
 
+	/*---------------My Implementation--------------*/
     argument_stack(parse, count, &_if);
-	hex_dump(if_.rsp, if_.rsp, PHYS_BASE - if_.rsp, true);
+	//hex_dump(_if.rsp, _if.rsp, PHYS_BASE - _if.rsp, true);
+
+
+	/*---------------Implementation End-------------*/
+
 	/* Start switched process. */
 	do_iret (&_if);
 	NOT_REACHED ();
@@ -664,7 +670,7 @@ setup_stack (struct intr_frame *if_) {
 
 void argument_stack(char **parse, int count, struct intr_frame *_if){
     /*push program name and char*/
-	int *rsp = _if->rsp;
+	int *rsp = KERN_BASE;
     int *arg_addr;
     int addr, i;
     for(i=0;i<count;i++){
@@ -686,9 +692,9 @@ void argument_stack(char **parse, int count, struct intr_frame *_if){
         *rsp = arg_addr[count-i-1];
     }
     /*%rsi to argv*/
-	_if->R->rsi = rsp;
+	_if.R.rsi = rsp;
     /*%rdi to argc*/
-	_if->R->rdi = count;
+	_if.R.rdi = count;
     /*push fake address 0*/
     rsp -= 8;
     *rsp=0;
