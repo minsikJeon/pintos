@@ -455,7 +455,7 @@ load (const char *file_name, struct intr_frame *if_) {
         addr= count-i-1;
         rsp -= strlen(parse[addr]+1);
         memcpy(rsp, parse[addr], strlen(parse[addr]+1));
-        arg_addr[addr]=(uint64_t)(rsp);
+        arg_addr[addr]=(uint64_t *)(rsp);
     }
     /*word align*/
     while((uint64_t)(rsp) & 7 !=0){
