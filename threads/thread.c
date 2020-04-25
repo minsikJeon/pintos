@@ -299,10 +299,9 @@ void
 thread_yield (void) {
 	struct thread *curr = thread_current ();
 	enum intr_level old_level;
-
+	old_level = intr_disable ();
 	ASSERT (!intr_context ());
 
-	old_level = intr_disable ();
 	if (curr != idle_thread)
 		list_insert_ordered (&ready_list, &curr->elem, thread_compare_priority, NULL);
 	do_schedule (THREAD_READY);
@@ -683,12 +682,15 @@ bool thread_compare_priority(const struct list_elem *x, const struct list_elem *
 void run_most_prior(void){
 	struct thread *cur = thread_current();
 	struct thread *t;
+	enum intr_level old_level;
+	old_level = intr_disable();
 	if (list_empty(&ready_list)==false){
 		t = list_entry(list_front(&ready_list), struct thread, elem);
 		if(cur->priority < t->priority){
 			thread_yield();
 		}
 	}
+	intr_set_level(old_level);
 }
 
 

@@ -71,7 +71,7 @@ initd (void *f_name) {
 #endif
 
 	process_init ();
-
+	printf("\n");
 	if (process_exec (f_name) < 0)
 		PANIC("Fail to launch initd\n");
 	NOT_REACHED ();

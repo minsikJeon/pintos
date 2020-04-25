@@ -5,7 +5,8 @@ iPXE (http://ipxe.org) 00:03.0 C980 PCI2.10 PnP PMM+0FF915A0+0FEF15A0 C980
 Press Ctrl-B to configure iPXE (PCI 00:03.0)...                                                                               
 
 
-Booting from Hard Disk..Kernel command line: -q run priority-condvar
+Booting from Hard Disk...
+Kernel command line: -q run priority-condvar
 0 ~ 9fc00 1
 100000 ~ ffe0000 1
 Pintos booting with: 
@@ -47,7 +48,7 @@ Executing 'priority-condvar':
 (priority-condvar) Thread priority 21 woke up.
 (priority-condvar) end
 Execution of 'priority-condvar' complete.
-Timer: 28 ticks
+Timer: 29 ticks
 Thread: 0 idle ticks, 29 kernel ticks, 0 user ticks
 Console: 1708 characters output
 Keyboard: 0 keys pressed

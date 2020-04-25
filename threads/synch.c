@@ -110,11 +110,12 @@ sema_up (struct semaphore *sema) {
 		t = list_entry (front_list,struct thread, elem);
         thread_unblock(t);
     }
-
     /*priority preemption?*/
-
+	if(!intr_context()){
+	run_most_prior();
+	}
 	intr_set_level (init_state);
-    run_most_prior();
+
 }
 
 static void sema_test_helper (void *sema_);
