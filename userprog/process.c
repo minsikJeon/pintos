@@ -53,7 +53,10 @@ process_create_initd (const char *file_name) {
     /*-----------------My implementation-------------------*/
 	char *save_ptr;
     char *fir_name = strtok_r(fn_copy," ",&save_ptr);
-
+	if(fir_name == NULL){
+		palloc_free_page (fn_copy);
+		return TID_ERROR;
+	}
     /*-----------------My implementation-------------------*/
 
 	/* Create a new thread to execute FILE_NAME. */
@@ -192,12 +195,12 @@ process_exec (void *f_name) {
 
 	/* And then load the binary */
 	success = load (file_name, &_if);
+
 	/* If load failed, quit. */
 	palloc_free_page (first_name);
 	if (!success)
 		return -1;
 
-	hex_dump(_if.rsp,_if.rsp,USER_STACK-_if.rsp,true);
 	/* Start switched process. */
 	do_iret (&_if);
 	NOT_REACHED ();
@@ -355,21 +358,28 @@ load (const char *file_name, struct intr_frame *if_) {
 	//argument parsing
 
     char **parse;
+	char *token;
 	char *save_ptr;
 	char *copy_name;
+	copy_name = palloc_get_page (0);
+	if(copy_name==NULL){
+		goto done;
+	}
 	strlcpy(copy_name,file_name,PGSIZE);
-    parse[0] = strtok_r(copy_name," ",&save_ptr);
-    int count=0;
-    while(parse[count]!=NULL){
-        count++;
-        parse[count] = strtok_r(NULL, " ", &save_ptr);
-    }
-
+    int j=0;
+	int argc;
+	for(token = strtok_r(copy_name, " ", &save_ptr); token !=NULL; token = strtok_r (NULL, " ", &save_ptr)){
+		parse[j]=token;
+		j++;
+	}
+	argc = j;
 	/*---------------Implementation End------------*/
+
+
 	/* Open executable file. */
 	file = filesys_open (parse[0]);
 	if (file == NULL) {
-		printf ("load: %s: open failed\n", file_name);
+		printf ("load: %s: open failed\n", parse[0]);
 		goto done;
 	}
 
@@ -381,7 +391,7 @@ load (const char *file_name, struct intr_frame *if_) {
 			|| ehdr.e_version != 1
 			|| ehdr.e_phentsize != sizeof (struct Phdr)
 			|| ehdr.e_phnum > 1024) {
-		printf ("load: %s: error loading executable\n", file_name);
+		printf ("load: %s: error loading executable\n", parse[0]);
 		goto done;
 	}
 
@@ -442,42 +452,49 @@ load (const char *file_name, struct intr_frame *if_) {
 	if (!setup_stack (if_))
 		goto done;
 
+	/*-----------My Implementation-------------*/
+	uintptr_t **rsp = &if_->rsp;
+    int **arg_addr;
+    int index;
+    for(i=0;i<argc;i++){
+        index= argc-i-1;
+        *rsp -= strlen(parse[addr])+1;
+        memcpy(*rsp, parse[index], strlen(parse[index]+1));
+        arg_addr[index]= *rsp;
+    }
+    /*word align*/
+    while((uint64_t)(*rsp) % 8 !=0){
+        *rsp--;
+    }
+	//do i have to put sth here?(uint8_t[])
+    /*parse[count]*/
+    *rsp -= 8;
+    **rsp = 0;
+    /*push program name and addr*/
+    for(i=0;i<argc;i++){
+		index=argc-i-1;
+        *rsp -= 8;
+		memcpy(*rsp, &arg_addr[index], sizeof(char*));
+    }
+    /*%rsi to argv*/
+	if_->R.rsi = (uint64_t)(rsp);
+    /*%rdi to argc*/
+	if_->R.rdi = argc;
+    /*push fake address 0*/
+    *rsp -= 8;
+    **rsp=0; //void(*)()?
+
+	int size_stack = (int)(USER_STACK)-(int)(*rsp);
+	//hex_dump(_if.rsp,_if.rsp,size_stack,true);
+
+	/*-----------Implementation End------------*/
+
+
 	/* Start address. */
 	if_->rip = ehdr.e_entry;
 
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
-	/*-----------My Implementation-------------*/
-	uintptr_t *rsp = if_->rsp;
-	rsp = USER_STACK;
-    int *arg_addr;
-    int addr;
-    for(i=0;i<count;i++){
-        addr= count-i-1;
-        rsp -= strlen(parse[addr]+1);
-        memcpy(rsp, parse[addr], strlen(parse[addr]+1));
-        arg_addr[addr]=(uint64_t *)(rsp);
-    }
-    /*word align*/
-    while((uint64_t)(rsp) & 7 !=0){
-        rsp--;
-    }
-    /*parse[count]*/
-    rsp -= 8;
-    *rsp = 0;
-    /*push program name and addr*/
-    for(i=0;i<count;i++){
-        rsp -= 8;
-        *rsp = arg_addr[count-i-1];
-    }
-    /*%rsi to argv*/
-	if_->R.rsi = (uint64_t)(rsp);
-    /*%rdi to argc*/
-	if_->R.rdi = count;
-    /*push fake address 0*/
-    rsp -= 8;
-    *rsp=0;
-	/*-----------Implementation End------------*/
 
 	success = true;
 
@@ -609,6 +626,7 @@ setup_stack (struct intr_frame *if_) {
 		else
 			palloc_free_page (kpage);
 	}
+
 	return success;
 }
 
@@ -698,6 +716,5 @@ setup_stack (struct intr_frame *if_) {
 	return success;
 }
 #endif /* VM */
-
 
 
