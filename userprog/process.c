@@ -356,8 +356,8 @@ load (const char *file_name, struct intr_frame *if_) {
 	int argc;
 	int num=2;
 	char *token, *save_ptr;
-
-	token = strtok_k((char*)file_name, " ",&save_ptr);
+	/*
+	token = strtok_r((char*)file_name, " ",&save_ptr);
 	while(token!=NULL){
 		parse[j]=token;
 		j++;
@@ -366,8 +366,8 @@ load (const char *file_name, struct intr_frame *if_) {
 			num=num*2;
 			parse = realloc(parse, num*sizeof(char*));
 		}
-	}
-	/*
+	}*/
+
 	for(token = strtok_r((char*)file_name, " ", &save_ptr); token !=NULL; token = strtok_r (NULL, " ", &save_ptr)){
 		parse[j]=token;
 		printf("%s\n",parse[j]);
@@ -377,7 +377,7 @@ load (const char *file_name, struct intr_frame *if_) {
 			parse = realloc(parse, num*sizeof(char*));
 		}
 
-	}*/
+	}
 	argc = j;
 	printf("%d\n", argc);
 	/*---------------Implementation End------------*/
@@ -464,15 +464,16 @@ load (const char *file_name, struct intr_frame *if_) {
 	if (!setup_stack (if_))
 		goto done;
 
+	if_->rip = ehdr.e_entry;
+
 	/*-----------My Implementation-------------*/
 	uintptr_t **rsp = &if_->rsp;
-	*rsp = USER_STACK;
     int **arg_addr= malloc(num*sizeof(char*));
     int index;
     for(i=0;i<argc;i++){
         index= argc-i-1;
-        *rsp -= strlen(parse[index])+1;
-        memcpy(*rsp, parse[index], strlen(parse[index]+1));
+        *rsp = (uint64_t)*rsp - strlen(parse[index])-1;
+        memcpy(*rsp, parse[index], strlen(parse[index])+1);
         arg_addr[index]= *rsp;
     }
     /*word align*/
@@ -481,12 +482,12 @@ load (const char *file_name, struct intr_frame *if_) {
     }
 	//do i have to put sth here?(uint8_t[])
     /*parse[count]*/
-    *rsp -= 8;
+    *rsp -= 1;
     **rsp = 0;
     /*push program name and addr*/
     for(i=0;i<argc;i++){
 		index=argc-i-1;
-        *rsp -= 8;
+        *rsp -= 1;
 		memcpy(*rsp, &arg_addr[index], sizeof(char*));
     }
     /*%rsi to argv*/
@@ -494,7 +495,7 @@ load (const char *file_name, struct intr_frame *if_) {
     /*%rdi to argc*/
 	if_->R.rdi = argc;
     /*push fake address 0*/
-    *rsp -= 8;
+    *rsp -= 1;
     *(int *)*rsp=0; //void(*)()?
 
 	int size_stack = (uint64_t)(USER_STACK)-(uint64_t)(*rsp);
@@ -505,7 +506,7 @@ load (const char *file_name, struct intr_frame *if_) {
 
 
 	/* Start address. */
-	if_->rip = ehdr.e_entry;
+
 
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
