@@ -354,13 +354,14 @@ load (const char *file_name, struct intr_frame *if_) {
 	//argument parsing
 
     char **parse = malloc(2*sizeof(char*));
+	/*
 	char *copy_name;
 	copy_name = palloc_get_page (0);
 	if(copy_name==NULL){
 		goto done;
 	}
 	strlcpy(copy_name,file_name,PGSIZE);
-	//no problem
+	*/
 
     int j=1;
 	int argc;
@@ -380,7 +381,7 @@ load (const char *file_name, struct intr_frame *if_) {
 		}
 	}
 	/*
-	for(token = strtok_r(copy_name, " ", &save_ptr); token !=NULL; token = strtok_r (NULL, " ", &save_ptr)){
+	for(token = strtok_r(file_name, " ", &save_ptr); token !=NULL; token = strtok_r (NULL, " ", &save_ptr)){
 		parse[j]=token;
 		printf("%s\n",parse[j]);
 		j++;
@@ -469,6 +470,7 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/*-----------My Implementation-------------*/
 	uintptr_t **rsp = &if_->rsp;
+	*rsp = USER_STACK;
     int **arg_addr= malloc(num*sizeof(char*));
     int index;
     for(i=0;i<argc;i++){
@@ -478,7 +480,7 @@ load (const char *file_name, struct intr_frame *if_) {
         arg_addr[index]= *rsp;
     }
     /*word align*/
-    while((uint64_t)(*rsp) % 8 !=0){
+    while((uint8_t)(*rsp) % 8 !=0){
         *rsp--;
     }
 	//do i have to put sth here?(uint8_t[])
@@ -499,7 +501,7 @@ load (const char *file_name, struct intr_frame *if_) {
     *rsp -= 8;
     *(int *)*rsp=0; //void(*)()?
 
-	int size_stack = (uint64_t)(USER_STACK)-(uint64_t)(*rsp);
+	int size_stack = (uint8_t)(USER_STACK)-(uint64_t)(*rsp);
 	printf("%d\n",size_stack);
 	hex_dump((uintptr_t)*rsp,*rsp,size_stack,true);
 
