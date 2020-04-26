@@ -184,10 +184,10 @@ process_exec (void *f_name) {
     /*-------------My Implementation----------------*/
 
 	char *first_name;
-	char *saveptr;
+	char *save_ptr;
 	first_name = palloc_get_page(0);
 	strlcpy(first_name, file_name, PGSIZE);
-	first_name = strtok_r(first_name," ",&saveptr);
+	first_name = strtok_r(first_name," ",&save_ptr);
 
     /*-------------Implementation End---------------*/
 
@@ -351,33 +351,19 @@ load (const char *file_name, struct intr_frame *if_) {
 	//argument parsing
 
     char **parse = malloc(2*sizeof(char*));
-
-    int j=0;
-	int argc;
+	int argc=0;
 	int num=2;
 	char *token, *save_ptr;
-	/*
-	token = strtok_r((char*)file_name, " ",&save_ptr);
-	while(token!=NULL){
-		parse[j]=token;
-		j++;
-		token = strtok_r(NULL, " ",&save_ptr);
-		if(j>=num){
-			num=num*2;
-			parse = realloc(parse, num*sizeof(char*));
-		}
-	}*/
 
 	for(token = strtok_r((char*)file_name, " ", &save_ptr); token !=NULL; token = strtok_r (NULL, " ", &save_ptr)){
-		parse[j]=token;
-		j++;
-		if(j>=num){
+		if(argc>=num){
 			num=num*2;
 			parse = realloc(parse, num*sizeof(char*));
 		}
+		parse[argc]=token;
+		argc++;
 
 	}
-	argc = j;
 	/*---------------Implementation End------------*/
 	/* Allocate and activate page directory. */
 	t->pml4 = pml4_create ();
@@ -462,8 +448,6 @@ load (const char *file_name, struct intr_frame *if_) {
 	if (!setup_stack (if_))
 		goto done;
 
-	if_->rip = ehdr.e_entry;
-
 	/*-----------My Implementation-------------*/
 	uintptr_t **rsp = &if_->rsp;
     int **arg_addr= malloc(num*sizeof(char*));
@@ -472,40 +456,34 @@ load (const char *file_name, struct intr_frame *if_) {
         index= argc-i-1;
 	*rsp = (uint64_t)*rsp - strlen(parse[index])-1;
         memcpy(*rsp, parse[index], strlen(parse[index])+1);
-	
         arg_addr[index]= *rsp;
     }
     /*word align*/
-    while((uint64_t)(*rsp) % 8 !=0){
-        *rsp=(uint64_t)(*rsp)-1;
-    }
+    *rsp=(uint64_t)(*rsp)-((uint64_t)(*rsp)%8);
 	//do i have to put sth here?(uint8_t[])
     /*parse[count]*/
     *rsp -= 1;
     **rsp = 0;
     /*push program name and addr*/
     for(i=0;i<argc;i++){
-		index=argc-i-1;
-        *rsp -= 1;
-		memcpy(*rsp, &arg_addr[index], sizeof(char*));
+	index=argc-i-1;
+        --*rsp;
+	memcpy(*rsp, &arg_addr[index], 8);
     }
     /*%rsi to argv*/
 	if_->R.rsi = (uint64_t)(*rsp);
     /*%rdi to argc*/
 	if_->R.rdi = argc;
     /*push fake address 0*/
-    *rsp -= 1;
+    --*rsp;
     *(int *)*rsp=0; //void(*)()?
-
-	int size_stack = (uint64_t)(USER_STACK)-(uint64_t)(*rsp);
-	printf("%d\n",size_stack);
+	int size_stack;
+	size_stack = (uint64_t)(USER_STACK) - (uint64_t)(*rsp);
 	hex_dump((uintptr_t)*rsp,*rsp,size_stack,true);
 
 	/*-----------Implementation End------------*/
-
-
 	/* Start address. */
-
+	if_->rip = ehdr.e_entry;
 
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
