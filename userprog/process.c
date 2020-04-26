@@ -354,39 +354,22 @@ load (const char *file_name, struct intr_frame *if_) {
 	//argument parsing
 
     char **parse = malloc(2*sizeof(char*));
-	/*
-	char *copy_name;
-	copy_name = palloc_get_page (0);
-	if(copy_name==NULL){
-		goto done;
-	}
-	strlcpy(copy_name,file_name,PGSIZE);
-	*/
 
-    int j=1;
+    int j=0;
 	int argc;
 	int num=2;
 	char *token, *save_ptr;
-	parse[0]=strtok_r(file_name, " ",&save_ptr);
-	while(1){
-		parse[j]= strtok_r(NULL, " ", &save_ptr);
-		if(parse[j]==NULL){
-			break;
-		}
+
+	for(token = strtok_r((char*)file_name, " ", &save_ptr); token !=NULL; token = strtok_r (NULL, " ", &save_ptr)){
+		parse[j]=token;
 		printf("%s\n",parse[j]);
 		j++;
 		if(j>=num){
 			num=num*2;
 			parse = realloc(parse, num*sizeof(char*));
 		}
-	}
-	/*
-	for(token = strtok_r(file_name, " ", &save_ptr); token !=NULL; token = strtok_r (NULL, " ", &save_ptr)){
-		parse[j]=token;
-		printf("%s\n",parse[j]);
-		j++;
 
-	}*/
+	}
 	argc = j;
 	printf("%d\n", argc);
 	/*---------------Implementation End------------*/
