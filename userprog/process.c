@@ -370,7 +370,6 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	for(token = strtok_r((char*)file_name, " ", &save_ptr); token !=NULL; token = strtok_r (NULL, " ", &save_ptr)){
 		parse[j]=token;
-		printf("%s\n",parse[j]);
 		j++;
 		if(j>=num){
 			num=num*2;
@@ -379,7 +378,6 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	}
 	argc = j;
-	printf("%d\n", argc);
 	/*---------------Implementation End------------*/
 	/* Allocate and activate page directory. */
 	t->pml4 = pml4_create ();
@@ -472,13 +470,14 @@ load (const char *file_name, struct intr_frame *if_) {
     int index;
     for(i=0;i<argc;i++){
         index= argc-i-1;
-        *rsp = (uint64_t)*rsp - strlen(parse[index])-1;
+	*rsp = (uint64_t)*rsp - strlen(parse[index])-1;
         memcpy(*rsp, parse[index], strlen(parse[index])+1);
+	
         arg_addr[index]= *rsp;
     }
     /*word align*/
-    while((uint8_t)(*rsp) % 8 !=0){
-        *rsp--;
+    while((uint64_t)(*rsp) % 8 !=0){
+        *rsp=(uint64_t)(*rsp)-1;
     }
 	//do i have to put sth here?(uint8_t[])
     /*parse[count]*/
