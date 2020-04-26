@@ -170,7 +170,6 @@ int
 process_exec (void *f_name) {
 	char *file_name = f_name;
 	bool success;
-
 	/* We cannot use the intr_frame in the thread structure.
 	 * This is because when current thread rescheduled,
 	 * it stores the execution information to the member. */
@@ -355,8 +354,6 @@ load (const char *file_name, struct intr_frame *if_) {
 	//argument parsing
 
     char **parse = malloc(2*sizeof(char*));
-	char *token;
-	char *save_ptr;
 	char *copy_name;
 	copy_name = palloc_get_page (0);
 	if(copy_name==NULL){
@@ -368,6 +365,7 @@ load (const char *file_name, struct intr_frame *if_) {
     int j=0;
 	int argc;
 	int num=2;
+	char *token, *save_ptr;
 	for(token = strtok_r(copy_name, " ", &save_ptr); token !=NULL; token = strtok_r (NULL, " ", &save_ptr)){
 		parse[j]=token;
 		printf("%s\n",parse[j]);
@@ -483,7 +481,7 @@ load (const char *file_name, struct intr_frame *if_) {
 		memcpy(*rsp, &arg_addr[index], sizeof(char*));
     }
     /*%rsi to argv*/
-	if_->R.rsi = (uint64_t)(rsp);
+	if_->R.rsi = (uint64_t)(*rsp);
     /*%rdi to argc*/
 	if_->R.rdi = argc;
     /*push fake address 0*/
@@ -491,7 +489,7 @@ load (const char *file_name, struct intr_frame *if_) {
     *(int *)*rsp=0; //void(*)()?
 
 	int size_stack = (uint64_t)(USER_STACK)-(uint64_t)(*rsp);
-	print("%d\n",size_stack);
+	printf("%d\n",size_stack);
 	hex_dump((uintptr_t)*rsp,*rsp,size_stack,true);
 
 	/*-----------Implementation End------------*/
