@@ -370,13 +370,15 @@ load (const char *file_name, struct intr_frame *if_) {
 	int num=2;
 	for(token = strtok_r(copy_name, " ", &save_ptr); token !=NULL; token = strtok_r (NULL, " ", &save_ptr)){
 		parse[j]=token;
+		printf("%s\n",parse[j]);
 		j++;
 		if(j>=num){
 			num=num*2;
-			parse = realloc(parse, num*sizeof(char*))
+			parse = realloc(parse, num*sizeof(char*));
 		}
 	}
 	argc = j;
+	printf("%d\n", argc);
 	/*---------------Implementation End------------*/
 
 
@@ -486,10 +488,11 @@ load (const char *file_name, struct intr_frame *if_) {
 	if_->R.rdi = argc;
     /*push fake address 0*/
     *rsp -= 8;
-    **rsp=0; //void(*)()?
+    *(int *)*rsp=0; //void(*)()?
 
-	int size_stack = (int)(USER_STACK)-(int)(*rsp);
-	//hex_dump(_if.rsp,_if.rsp,size_stack,true);
+	int size_stack = (uint64_t)(USER_STACK)-(uint64_t)(*rsp);
+	print("%d\n",size_stack);
+	hex_dump((uintptr_t)*rsp,*rsp,size_stack,true);
 
 	/*-----------Implementation End------------*/
 
