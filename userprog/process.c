@@ -53,10 +53,7 @@ process_create_initd (const char *file_name) {
     /*-----------------My implementation-------------------*/
 	char *save_ptr;
     char *fir_name = strtok_r(fn_copy," ",&save_ptr);
-	if(fir_name == NULL){
-		palloc_free_page (fn_copy);
-		return TID_ERROR;
-	}
+
     /*-----------------My implementation-------------------*/
 
 	/* Create a new thread to execute FILE_NAME. */
@@ -74,7 +71,7 @@ initd (void *f_name) {
 #endif
 
 	process_init ();
-	printf("\n");
+
 	if (process_exec (f_name) < 0)
 		PANIC("Fail to launch initd\n");
 	NOT_REACHED ();
@@ -357,7 +354,7 @@ load (const char *file_name, struct intr_frame *if_) {
 	/*---------------My Implementation-------------*/
 	//argument parsing
 
-    char **parse;
+    char **parse = malloc(2*sizeof(char*));
 	char *token;
 	char *save_ptr;
 	char *copy_name;
@@ -366,11 +363,18 @@ load (const char *file_name, struct intr_frame *if_) {
 		goto done;
 	}
 	strlcpy(copy_name,file_name,PGSIZE);
+	//no problem
+
     int j=0;
 	int argc;
+	int num=2;
 	for(token = strtok_r(copy_name, " ", &save_ptr); token !=NULL; token = strtok_r (NULL, " ", &save_ptr)){
 		parse[j]=token;
 		j++;
+		if(j>=num){
+			num=num*2;
+			parse = realloc(parse, num*sizeof(char*))
+		}
 	}
 	argc = j;
 	/*---------------Implementation End------------*/
@@ -454,11 +458,11 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/*-----------My Implementation-------------*/
 	uintptr_t **rsp = &if_->rsp;
-    int **arg_addr;
+    int **arg_addr= malloc(num*sizeof(char*));
     int index;
     for(i=0;i<argc;i++){
         index= argc-i-1;
-        *rsp -= strlen(parse[addr])+1;
+        *rsp -= strlen(parse[index])+1;
         memcpy(*rsp, parse[index], strlen(parse[index]+1));
         arg_addr[index]= *rsp;
     }
