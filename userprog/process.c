@@ -52,7 +52,7 @@ process_create_initd (const char *file_name) {
 
     /*-----------------My implementation-------------------*/
 	char *save_ptr;
-    char *fir_name = strtok_r(fn_copy," ",&save_ptr);
+    char *fir_name = strtok_r((char*)file_name," ",&save_ptr);
 
     /*-----------------My implementation-------------------*/
 
@@ -184,10 +184,10 @@ process_exec (void *f_name) {
     /*-------------My Implementation----------------*/
 
 	char *first_name;
-	char *save_ptr;
+	char *saveptr;
 	first_name = palloc_get_page(0);
 	strlcpy(first_name, file_name, PGSIZE);
-	first_name = strtok_r(first_name," ",&save_ptr);
+	first_name = strtok_r(first_name," ",&saveptr);
 
     /*-------------Implementation End---------------*/
 
@@ -345,11 +345,6 @@ load (const char *file_name, struct intr_frame *if_) {
 	bool success = false;
 	int i;
 
-	/* Allocate and activate page directory. */
-	t->pml4 = pml4_create ();
-	if (t->pml4 == NULL)
-		goto done;
-	process_activate (thread_current ());
 
 
 	/*---------------My Implementation-------------*/
@@ -362,6 +357,17 @@ load (const char *file_name, struct intr_frame *if_) {
 	int num=2;
 	char *token, *save_ptr;
 
+	token = strtok_k((char*)file_name, " ",&save_ptr);
+	while(token!=NULL){
+		parse[j]=token;
+		j++;
+		token = strtok_r(NULL, " ",&save_ptr);
+		if(j>=num){
+			num=num*2;
+			parse = realloc(parse, num*sizeof(char*));
+		}
+	}
+	/*
 	for(token = strtok_r((char*)file_name, " ", &save_ptr); token !=NULL; token = strtok_r (NULL, " ", &save_ptr)){
 		parse[j]=token;
 		printf("%s\n",parse[j]);
@@ -371,10 +377,15 @@ load (const char *file_name, struct intr_frame *if_) {
 			parse = realloc(parse, num*sizeof(char*));
 		}
 
-	}
+	}*/
 	argc = j;
 	printf("%d\n", argc);
 	/*---------------Implementation End------------*/
+	/* Allocate and activate page directory. */
+	t->pml4 = pml4_create ();
+	if (t->pml4 == NULL)
+		goto done;
+	process_activate (thread_current ());
 
 
 	/* Open executable file. */
