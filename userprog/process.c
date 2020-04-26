@@ -362,12 +362,16 @@ load (const char *file_name, struct intr_frame *if_) {
 	strlcpy(copy_name,file_name,PGSIZE);
 	//no problem
 
-    int j=0;
+    int j=1;
 	int argc;
 	int num=2;
 	char *token, *save_ptr;
-	for(token = strtok_r(copy_name, " ", &save_ptr); token !=NULL; token = strtok_r (NULL, " ", &save_ptr)){
-		parse[j]=token;
+	parse[0]=strtok_r(copy_name, " ",&save_ptr);
+	while(1){
+		parse[j]= strtok_r(NULL, " ", &save_ptr);
+		if(parse[j]==NULL){
+			break;
+		}
 		printf("%s\n",parse[j]);
 		j++;
 		if(j>=num){
@@ -375,6 +379,13 @@ load (const char *file_name, struct intr_frame *if_) {
 			parse = realloc(parse, num*sizeof(char*));
 		}
 	}
+	/*
+	for(token = strtok_r(copy_name, " ", &save_ptr); token !=NULL; token = strtok_r (NULL, " ", &save_ptr)){
+		parse[j]=token;
+		printf("%s\n",parse[j]);
+		j++;
+
+	}*/
 	argc = j;
 	printf("%d\n", argc);
 	/*---------------Implementation End------------*/
