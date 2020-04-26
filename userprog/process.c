@@ -354,20 +354,12 @@ load (const char *file_name, struct intr_frame *if_) {
 	//argument parsing
 
     char **parse = malloc(2*sizeof(char*));
-	/*
-	char *copy_name;
-	copy_name = palloc_get_page (0);
-	if(copy_name==NULL){
-		goto done;
-	}
-	strlcpy(copy_name,file_name,PGSIZE);
-	*/
 
     int j=1;
 	int argc;
 	int num=2;
 	char *token, *save_ptr;
-	parse[0]=strtok_r(copy_name, " ",&save_ptr);
+	parse[0]=strtok_r(file_name, " ",&save_ptr);
 	while(1){
 		parse[j]= strtok_r(NULL, " ", &save_ptr);
 		if(parse[j]==NULL){
@@ -476,32 +468,38 @@ load (const char *file_name, struct intr_frame *if_) {
     for(i=0;i<argc;i++){
         index= argc-i-1;
         *rsp -= strlen(parse[index])+1;
+        printf("\nlength: %d\n",strlen(parse[index]));
         memcpy(*rsp, parse[index], strlen(parse[index]+1));
         arg_addr[index]= *rsp;
     }
     /*word align*/
+    int cnt=0;
+    parse[argc] = 0;
     while((uint8_t)(*rsp) % 8 !=0){
         *rsp--;
+        cnt++;
     }
+    if(cnt!=0){
+        memcpy(*rsp, &parse[argc],cnt);
+    }
+
 	//do i have to put sth here?(uint8_t[])
     /*parse[count]*/
-    *rsp -= 8;
-    **rsp = 0;
     /*push program name and addr*/
     for(i=0;i<argc;i++){
-		index=argc-i-1;
-        *rsp -= 8;
+		index=argc-i;
+        *rsp -= sizeof(char*);
 		memcpy(*rsp, &arg_addr[index], sizeof(char*));
     }
     /*%rsi to argv*/
 	if_->R.rsi = (uint64_t)(*rsp);
     /*%rdi to argc*/
-	if_->R.rdi = argc;
+	if_->R.rdi = (int)argc;
     /*push fake address 0*/
-    *rsp -= 8;
+    *rsp -= sizeof(char*);
     *(int *)*rsp=0; //void(*)()?
 
-	int size_stack = (uint8_t)(USER_STACK)-(uint64_t)(*rsp);
+	int size_stack = (uint64_t)(USER_STACK)-(uint64_t)(*rsp);
 	printf("%d\n",size_stack);
 	hex_dump((uintptr_t)*rsp,*rsp,size_stack,true);
 
