@@ -185,7 +185,9 @@ process_exec (void *f_name) {
 
 	char *first_name;
 	char *save_ptr;
-	first_name = strtok_r(file_name," ",&save_ptr);
+	first_name = palloc_get_page(0);
+	strlcpy(first_name, file_name, PGSIZE);
+	first_name = strtok_r(first_name," ",&save_ptr);
 
     /*-------------Implementation End---------------*/
 
