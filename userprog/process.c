@@ -52,7 +52,8 @@ process_create_initd (const char *file_name) {
 
     /*-----------------My implementation-------------------*/
 	char *save_ptr;
-    char *fir_name = strtok_r((char*)file_name," ",&save_ptr);
+    char *fir_name;
+   fir_name =  strtok_r(file_name," ",&save_ptr);
 
     /*-----------------My implementation-------------------*/
 
@@ -184,9 +185,11 @@ process_exec (void *f_name) {
     /*-------------My Implementation----------------*/
 
 	char *first_name;
-	char *save_ptr;
+	
 	first_name = palloc_get_page(0);
 	strlcpy(first_name, file_name, PGSIZE);
+	
+	char *save_ptr;
 	first_name = strtok_r(first_name," ",&save_ptr);
 
     /*-------------Implementation End---------------*/
@@ -349,16 +352,15 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/*---------------My Implementation-------------*/
 	//argument parsing
-
-    char **parse = malloc(2*sizeof(char*));
+int num=16;
+    char **parse = malloc(num);
 	int argc=0;
-	int num=2;
 	char *token, *save_ptr;
 
-	for(token = strtok_r((char*)file_name, " ", &save_ptr); token !=NULL; token = strtok_r (NULL, " ", &save_ptr)){
-		if(argc>=num){
+	for(token = strtok_r(file_name, " ", &save_ptr); token !=NULL; token = strtok_r (NULL, " ", &save_ptr)){
+		if(argc*8>=num){
 			num=num*2;
-			parse = realloc(parse, num*sizeof(char*));
+			parse = realloc(parse, num);
 		}
 		parse[argc]=token;
 		argc++;
@@ -450,7 +452,7 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/*-----------My Implementation-------------*/
 	uintptr_t **rsp = &if_->rsp;
-    int **arg_addr= malloc(num*sizeof(char*));
+    int **arg_addr= malloc(num*8);
     int index;
     for(i=0;i<argc;i++){
         index= argc-i-1;
@@ -466,14 +468,14 @@ load (const char *file_name, struct intr_frame *if_) {
     **rsp = 0;
     /*push program name and addr*/
     for(i=0;i<argc;i++){
+	    --*rsp;
 	index=argc-i-1;
-        --*rsp;
 	memcpy(*rsp, &arg_addr[index], 8);
     }
+    /*%rdi to argc*/
+    	if_->R.rdi = argc;
     /*%rsi to argv*/
 	if_->R.rsi = (uint64_t)(*rsp);
-    /*%rdi to argc*/
-	if_->R.rdi = argc;
     /*push fake address 0*/
     --*rsp;
     *(int *)*rsp=0; //void(*)()?
