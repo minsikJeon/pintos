@@ -13,6 +13,7 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "devices/input.h"
+#include "threads/synch.h"
 /*implementation end*/
 
 void syscall_entry (void);
@@ -21,9 +22,9 @@ void syscall_handler (struct intr_frame *);
 //function add
 void halt (void);
 void exit (int status);
-pid_t fork(const char *thread_name);
+int fork(const char *thread_name);
 int exec (const char *cmd_line);
-int wait (pid_t pid);
+int wait (int pid);
 bool create(const char *file, unsigned initial_size);
 bool remove (const char *file);
 int open (const char *file);
@@ -55,9 +56,6 @@ struct lock filesys_lock;
 
 void
 syscall_init (void) {
-    lock_init(&filesys_lock);
-    int *args;
-    args = malloc()
 	write_msr(MSR_STAR, ((uint64_t)SEL_UCSEG - 0x10) << 48  |
 			((uint64_t)SEL_KCSEG) << 32);
 	write_msr(MSR_LSTAR, (uint64_t) syscall_entry);
@@ -67,6 +65,8 @@ syscall_init (void) {
 	 * mode stack. Therefore, we masked the FLAG_FL. */
 	write_msr(MSR_SYSCALL_MASK,
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
+
+    lock_init(&filesys_lock);
 }
 
 /* The main system call interface */
@@ -120,7 +120,6 @@ syscall_handler (struct intr_frame *f UNUSED) {
     //check whether the stack pointer is in user stack
     check_address(*rsp);
 
-
     //if the arguments are pointer, check whether the addresses are validate
 
     //find which case the syscall is
@@ -147,36 +146,53 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
 
         case SYS_WAIT:
-            get_argument();
+            get_argument(f, &arg[0],1);
+            f->R.rax = wait(arg[0]);
             break;
 
         case SYS_CREATE:
-            get_argument();
+            get_argument(f, &arg[0],2);
+            f->R.rax = create((const char *)arg[0],(unsigned)arg[1]);
             break;
 
         case SYS_REMOVE:
-            get_argument();
+            get_argument(f, &arg[0],1);
+            f->R.rax = remove((const char*)arg[0]);
             break;
 
         case SYS_OPEN:
+            get_argument(f, &arg[0],1);
+            f->R.rax = open((const char *)arg[0]);
             break;
 
         case SYS_FILESIZE:
+            get_argument(f, &arg[0],1);
+            f->R.rax = filesize(arg[0]);
             break;
 
         case SYS_READ:
+            get_argument(f, &arg[0],3);
+            f->R.rax = read(arg[0],(void *)arg[1],(unsigned)arg[2]);
             break;
 
         case SYS_WRITE:
+            get_argument(f, &arg[0],3);
+            f->R.rax = write(arg[0],(const void *)arg[1],(unsigned)arg[2]);
             break;
 
         case SYS_SEEK:
+            get_argument(f, &arg[0],2);
+            f->R.rax = seek(arg[0],(unsigned)arg[1]);
             break;
 
         case SYS_TELL:
+            get_argument(f, &arg[0],1);
+            f->R.rax = tell(arg[0]);
             break;
 
         case SYS_CLOSE:
+            get_argument(f, &arg[0],1);
+            f->R.rax = close(arg[0]);
             break;
         
         default
@@ -200,9 +216,9 @@ void exit (int status){
     thread_exit();
 }
 
-pid_t fork(const char *thread_name){
+int fork(const char *thread_name){
     struct thread *cur = thread_current();
-    pid_t child_pid;
+    int child_pid;
     return child_pid;
 }
 
@@ -216,15 +232,15 @@ int exec (const char *cmd_line){
         return TID_ERROR;
     }
 
-    if(child_th->load_state == LOAD_BEFORE){
+    if(child_th->load_status == LOAD_BEFORE){
         sema_down(&child_th->sema_load);
     }
 
-    if(child_th->load==LOAD_FAIL){
+    if(child_th->load_status==LOAD_FAIL){
         remove_child_process(child_th);
         return TID_ERROR;
     }
-    return pid;
+    return ch_tid;
 }
 
 int wait (pid_t pid){
@@ -235,7 +251,7 @@ int wait (pid_t pid){
 bool create(const char *file, unsigned initial_size){
     bool success;
     lock_acquire(&filesys_lock);
-    success = filesys_create(file_name, initial_size); //lock needed?
+    success = filesys_create(file, initial_size); //lock needed?
     lock_release(&filesys_lock);
     return success;
 }
@@ -244,7 +260,7 @@ bool create(const char *file, unsigned initial_size){
 bool remove (const char *file){
     bool success;
     lock_acquire(&filesys_lock);
-    success = filesys_remove(file_name, initial_size); //lock needed?
+    success = filesys_remove(file); //lock needed?
     lock_release(&filesys_lock);
     return success;
 }
@@ -260,7 +276,7 @@ int open (const char *file){
     ASSERT(fd !=0);
     ASSERT(fd !=1);
 
-    lock_release(&lock_file);
+    lock_release(&filesys_lock);
     return fd;
 }
 
@@ -277,9 +293,9 @@ int read(int fd, void *buffer, unsigned size){
     lock_acquire(&filesys_lock);
     struct file *f_open = process_get_file(fd);
     if(fd==0){
+        uint8_t *cur_buf = (uint8_t *)buffer;
         for(unsigned i=0;i<size;i++){
-            *buffer = input_getc();
-            buffer++;
+            cur_buf[i] = input_getc(); //right?
         }
         lock_release(&filesys_lock);
         return size;
@@ -287,7 +303,7 @@ int read(int fd, void *buffer, unsigned size){
     else{
         if(f_open == NULL){
             lock_release(&filesys_lock);
-            return ERROR;
+            return -1;
         }
         read_len = file_read(f_open,buffer,size);
         lock_release(&filesys_lock);
@@ -307,7 +323,7 @@ int write (int fd, const void *buffer, unsigned size){
     else{
         if(f_open == NULL){
             lock_release(&filesys_lock);
-            return ERROR;
+            return 0;
         }
         write_len = file_write(f_open,buffer,size);
         lock_release(&filesys_lock);
@@ -320,7 +336,7 @@ void seek (int fd, unsigned position){
     struct file *f_open = process_get_file(fd);
     if(f_open == NULL){
         lock_release(&filesys_lock);
-        return ERROR;
+        return;
     }
     file_seek(f_open, position);
     lock_release(&filesys_lock);
@@ -331,9 +347,9 @@ unsigned tell (int fd){
     struct file *f_open = process_get_file(fd);
     if(f_open == NULL){
         lock_release(&filesys_lock);
-        return ERROR;
+        return -1; // right?
     }
-    unsigned result = file_tell(fd);
+    unsigned result = file_tell(f_open);
     lock_release(&filesys_lock);
     return result;
 }

@@ -18,6 +18,7 @@
 #include "threads/mmu.h"
 #include "threads/vaddr.h"
 #include "intrinsic.h"
+#include "threads/synch.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -202,11 +203,11 @@ process_exec (void *f_name) {
 	/* If load failed, quit. */
 	palloc_free_page (first_name);
 	if (!success)
-		cur->load_state = LOAD_FAIL;
+		cur->load_status = LOAD_FAIL;
 		return -1;
 
 	/* Start switched process. */
-	cur->load_state = LOAD_SUCCESS;
+	cur->load_status = LOAD_SUCCESS;
 	do_iret (&_if);
 	NOT_REACHED ();
 }
@@ -742,7 +743,7 @@ struct thread *get_child_process (int pid){
 	struct list_elem *cur = list_begin(&ch_list);
 	while(cur != list_end(&ch_list)){
 		temp = list_entry(cur, struct thread, elem);
-		if(pid == child_th->pid){
+		if(pid == child_th->tid){
 			child_th = temp;
 			break;
 		}
@@ -786,4 +787,3 @@ void process_close_file(int fd){
 	t->fd_table[fd]=NULL;
 }
 /*-------------------------------------------------------*/
-
