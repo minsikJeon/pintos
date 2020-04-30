@@ -196,9 +196,9 @@ thread_create (const char *name, int priority,
 
     /*-------syscall implementation-----------*/
     struct thread *cur= thread_current();
-    t->parent_id = cur()->tid;
+    t->parent_id = cur->tid;
     t->load_status = LOAD_BEFORE;
-    t->exit = false;
+    t->exit_status = 1;
     sema_init(&t->sema_exit,0);
     sema_init(&t->sema_load,0);
     list_push_back(&cur->child_list, &t->child_elem);

@@ -18,11 +18,11 @@ enum thread_status {
 	THREAD_DYING        /* About to be destroyed. */
 };
 
-enum load_status {
+enum load_state {
 	LOAD_BEFORE,
 	LOAD_FAIL,
 	LOAD_SUCCESS
-}
+};
 
 /* Thread identifier type.
    You can redefine this to whatever type you like. */
@@ -119,9 +119,9 @@ struct thread {
 	struct list_elem child_elem;
 	struct list child_list;
 
-	enum load_status;
-	struct semaphore sema_exit;
-	struct semaphore sema_load;
+	enum load_state load_status;
+	struct semaphore *sema_exit;
+	struct semaphore *sema_load;
 	int exit_status;
 
 	struct file **fd_table;

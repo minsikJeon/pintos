@@ -343,5 +343,3 @@ void close(int fd){
     process_close_file(fd);
     lock_release(&filesys_lock);
 }
-
-
