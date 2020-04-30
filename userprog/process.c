@@ -175,6 +175,7 @@ process_exec (void *f_name) {
 	 * This is because when current thread rescheduled,
 	 * it stores the execution information to the member. */
 	struct intr_frame _if;
+	struct thread* cur = thread_current();
 	_if.ds = _if.es = _if.ss = SEL_UDSEG;
 	_if.cs = SEL_UCSEG;
 	_if.eflags = FLAG_IF | FLAG_MBS;
@@ -196,13 +197,16 @@ process_exec (void *f_name) {
 
 	/* And then load the binary */
 	success = load (file_name, &_if);
+	sema_up(cur->sema_load);
 
 	/* If load failed, quit. */
 	palloc_free_page (first_name);
 	if (!success)
+		cur->load_state = LOAD_FAIL;
 		return -1;
 
 	/* Start switched process. */
+	cur->load_state = LOAD_SUCCESS;
 	do_iret (&_if);
 	NOT_REACHED ();
 }
@@ -222,8 +226,14 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
-	 while(1);
-	return -1;
+	struct thread *child_th = get_child_process(child_tid);
+	if(child_th ==NULL){
+		return -1;
+	}
+	sema_down(&child_th->sema_exit);
+	int exit_st = child_th -> exit_status;
+	remove_child_process(child_th);
+	return exit_st;
 }
 
 /* Exit the process. This function is called by thread_exit (). */
@@ -242,6 +252,15 @@ process_exit (void) {
 static void
 process_cleanup (void) {
 	struct thread *curr = thread_current ();
+
+	int fd_cur = curr->max_fd;
+	fd_cur--;
+	while(fd_cur>1){
+		file_close(curr->fd_table[fd_cur]);
+		fd_cur--;
+	}
+	curr->max_fd = 2;
+	palloc_free_page(curr->fd_table);
 
 #ifdef VM
 	supplemental_page_table_kill (&curr->spt);
@@ -473,7 +492,7 @@ int num=16;
 	memcpy(*rsp, &arg_addr[index], 8);
     }
     /*%rdi to argc*/
-    	if_->R.rdi = argc;
+    if_->R.rdi = argc;
     /*%rsi to argv*/
 	if_->R.rsi = (uint64_t)(*rsp);
     /*push fake address 0*/
@@ -668,6 +687,7 @@ lazy_load_segment (struct page *page, void *aux) {
  *
  * Return true if successful, false if a memory allocation error
  * or disk read error occurs. */
+
 static bool
 load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		uint32_t read_bytes, uint32_t zero_bytes, bool writable) {
@@ -712,3 +732,57 @@ setup_stack (struct intr_frame *if_) {
 #endif /* VM */
 
 
+/*------------------syscall implementation---------------*/
+struct thread *get_child_process (int pid){
+	struct thread *t = thread_current();
+	struct thread *child_th=NULL;
+	struct thread *temp;
+	struct list ch_list = t->child_list;
+
+	struct list_elem *cur = list_begin(&ch_list);
+	while(cur != list_end(&ch_list)){
+		temp = list_entry(cur, struct thread, elem);
+		if(pid == child_th->pid){
+			child_th = temp;
+			break;
+		}
+		cur = list_next(cur);
+	}
+	return child_th;
+}
+
+void remove_child_process(struct thread *cp){
+	list_remove(&cp->elem);
+	free(cp);
+}
+
+/*add a file to fd_table of current thread*/
+int process_add_file (struct file *f){
+	struct thread *t = thread_current();
+	t->max_fd +=1;
+	t->fd_table[t->max_fd]=f;
+	return t->max_fd;
+}
+
+/*returns a file which has file descriptor number fd*/
+struct file *process_get_file(int fd){
+	struct thread *t = thread_current();
+	if(t->fd_table[fd]==NULL){
+		return NULL;
+	}
+	else if(fd<2 || fd>=(t->max_fd)){
+		return NULL;
+	}
+	return t->fd_table[fd];
+}
+
+/*close a file with fd*/
+void process_close_file(int fd){
+	struct thread *t = thread_current();
+	if(fd<2 || fd>=(t->max_fd)){
+		return;
+	}
+	file_close(t->fd_table[fd]);
+	t->fd_table[fd]=NULL;
+}
+/*-------------------------------------------------------*/

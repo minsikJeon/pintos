@@ -18,6 +18,12 @@ enum thread_status {
 	THREAD_DYING        /* About to be destroyed. */
 };
 
+enum load_status {
+	LOAD_BEFORE,
+	LOAD_FAIL,
+	LOAD_SUCCESS
+}
+
 /* Thread identifier type.
    You can redefine this to whatever type you like. */
 typedef int tid_t;
@@ -107,6 +113,21 @@ struct thread {
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
 #endif
+
+	/*-------for syscall---------*/
+	tid_t parent_id;
+	struct list_elem child_elem;
+	struct list child_list;
+
+	enum load_status;
+	struct semaphore sema_exit;
+	struct semaphore sema_load;
+	int exit_status;
+
+	struct file **fd_table;
+	int max_fd;
+	/*---------------------------*/
+
 #ifdef VM
 	/* Table for whole virtual memory owned by thread. */
 	struct supplemental_page_table spt;
