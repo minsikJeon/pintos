@@ -14,6 +14,7 @@
 #include "filesys/file.h"
 #include "devices/input.h"
 #include "threads/synch.h"
+#include "userprog/process.h"
 /*implementation end*/
 
 void syscall_entry (void);
@@ -182,7 +183,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 
         case SYS_SEEK:
             get_argument(f, &arg[0],2);
-            f->R.rax = seek(arg[0],(unsigned)arg[1]);
+            seek(arg[0],(unsigned)arg[1]);
             break;
 
         case SYS_TELL:
@@ -192,10 +193,10 @@ syscall_handler (struct intr_frame *f UNUSED) {
 
         case SYS_CLOSE:
             get_argument(f, &arg[0],1);
-            f->R.rax = close(arg[0]);
+            close(arg[0]);
             break;
         
-        default
+        default:
             break;
             //what to do??
     }
@@ -243,7 +244,7 @@ int exec (const char *cmd_line){
     return ch_tid;
 }
 
-int wait (pid_t pid){
+int wait (int pid){
     return process_wait(pid);
 }
 

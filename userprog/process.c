@@ -760,8 +760,8 @@ void remove_child_process(struct thread *cp){
 /*add a file to fd_table of current thread*/
 int process_add_file (struct file *f){
 	struct thread *t = thread_current();
-	t->max_fd +=1;
 	t->fd_table[t->max_fd]=f;
+	t->max_fd +=1;
 	return t->max_fd;
 }
 
