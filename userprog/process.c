@@ -54,7 +54,7 @@ process_create_initd (const char *file_name) {
     /*-----------------My implementation-------------------*/
 	char *save_ptr;
     char *fir_name;
-   fir_name =  strtok_r(file_name," ",&save_ptr);
+    fir_name =  strtok_r(file_name," ",&save_ptr);
 
     /*-----------------My implementation-------------------*/
 
@@ -736,20 +736,17 @@ setup_stack (struct intr_frame *if_) {
 /*------------------syscall implementation---------------*/
 struct thread *get_child_process (int pid){
 	struct thread *t = thread_current();
-	struct thread *child_th=NULL;
 	struct thread *temp;
-	struct list ch_list = t->child_list;
-
-	struct list_elem *cur = list_begin(&ch_list);
-	while(cur != list_end(&ch_list)){
+	struct list_elem *cur = list_begin(&t->child_list);
+	struct list_elem *next;
+	for(cur;cur != list_end(&t->child_list);cur = next){
+		next = list_next(cur);
 		temp = list_entry(cur, struct thread, elem);
-		if(pid == child_th->tid){
-			child_th = temp;
-			break;
+		if(pid == temp->tid){
+			return temp;
 		}
-		cur = list_next(cur);
 	}
-	return child_th;
+	return NULL;
 }
 
 void remove_child_process(struct thread *cp){
