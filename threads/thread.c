@@ -476,10 +476,10 @@ init_thread (struct thread *t, const char *name, int priority) {
 
     t->load_status = LOAD_BEFORE;
     t->exit_status = 1;
-    sema_init(&t->sema_wait,0);
-    sema_init(&t->sema_load,0);
-	sema_init(&t->sema_fork,0);
-	sema_init(&t->sema_remove,0);
+    sema_init(t->sema_wait,0);
+    sema_init(t->sema_load,0);
+	sema_init(t->sema_fork,0);
+	sema_init(t->sema_remove,0);
 
 
 
