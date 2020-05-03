@@ -115,7 +115,7 @@ struct thread {
 #endif
 
 	/*-------for syscall---------*/
-	tid_t parent_id;
+	struct thread *parent_th;
 	struct list_elem child_elem;
 	struct list child_list;
 

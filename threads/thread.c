@@ -196,7 +196,7 @@ thread_create (const char *name, int priority,
 
     /*-------syscall implementation-----------*/
     struct thread *cur= thread_current();
-    t->parent_id = cur->tid;
+    t->parent_th = cur;
     t->load_status = LOAD_BEFORE;
     t->exit_status = 1;
     sema_init(&t->sema_exit,0);
@@ -306,12 +306,14 @@ thread_exit (void) {
 #ifdef USERPROG
 	process_exit ();
 #endif
+    struct thread *t = thread_current();
+
+
 
 	/* Just set our status to dying and schedule another process.
 	   We will be destroyed during the call to schedule_tail(). */
 	intr_disable ();
-    struct thread *t = thread_current();
-    t->exit_status = 0; // right?
+	t->exit_status = 0; // right?
     sema_up(&t->sema_exit);
 	do_schedule (THREAD_DYING);
 	NOT_REACHED ();

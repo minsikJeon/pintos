@@ -15,7 +15,7 @@
 #include "devices/input.h"
 #include "threads/synch.h"
 #include "userprog/process.h"
-/*implementation end*/kt
+/*implementation end*/
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
@@ -218,12 +218,7 @@ void exit (int status){
 }
 
 int fork(const char *thread_name){
-    struct thread *cur = thread_current();
-    struct thread *child_th;
-    tid_t ch_tid;
-    
-    
-    return child_pid;
+    return process_fork(thread_name);
 }
 
 int exec (const char *cmd_line){

@@ -100,21 +100,31 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 	bool writable;
 
 	/* 1. TODO: If the parent_page is kernel page, then return immediately. */
-
+	if(is_kern_pte(pte)){
+		return true; // right?
+	}
 	/* 2. Resolve VA from the parent's page map level 4. */
 	parent_page = pml4_get_page (parent->pml4, va);
 
 	/* 3. TODO: Allocate new PAL_USER page for the child and set result to
 	 *    TODO: NEWPAGE. */
+	uint8_t *kpage = palloc_get_page(PAL_USER);
+	newpage = (void *)kpage;
+
 
 	/* 4. TODO: Duplicate parent's page to the new page and
 	 *    TODO: check whether parent's page is writable or not (set WRITABLE
 	 *    TODO: according to the result). */
+	
+	memcpy (newpage, parent_page, PGSIZE);
+	writable = is_writable(parent_page);
 
 	/* 5. Add new page to child's page table at address VA with WRITABLE
 	 *    permission. */
 	if (!pml4_set_page (current->pml4, va, newpage, writable)) {
 		/* 6. TODO: if fail to insert page, do error handling. */
+		printf("error bbiyongbbiyong\n");
+		return false;
 	}
 	return true;
 }
@@ -131,6 +141,10 @@ __do_fork (void *aux) {
 	struct thread *current = thread_current ();
 	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
 	struct intr_frame *parent_if;
+	parent_if = current->parent_th->tf;
+	//parent_if = parent->tf;
+
+
 	bool succ = true;
 
 	/* 1. Read the cpu context to local stack. */
@@ -156,6 +170,16 @@ __do_fork (void *aux) {
 	 * TODO:       in include/filesys/file.h. Note that parent should not return
 	 * TODO:       from the fork() until this function successfully duplicates
 	 * TODO:       the resources of parent.*/
+	struct file *temp_file;
+	for(i=0;i<(parent->max_fd);i++){
+		temp_file = file_duplicate(parent->fd_table[i]);
+		/*if(temp_file == NULL){
+			goto error; // null right?
+		}*/
+		current->fd_table[i] = temp_file;
+	}
+	current->max_fd = parent->max_fd;
+
 
 	process_init ();
 
@@ -241,6 +265,14 @@ process_wait (tid_t child_tid UNUSED) {
 void
 process_exit (void) {
 	struct thread *curr = thread_current ();
+
+	for(curr->max_fd--;curr->max_fd >=2 ; cur->max_fd--){
+		file_close(curr->fd_table[cur->max_fd]);
+	}
+	cur->fd_table +=2;
+	palloc_free_page(cur->fd_table);
+
+	
 	/* TODO: Your code goes here.
 	 * TODO: Implement process termination message (see
 	 * TODO: project2/process_termination.html).
@@ -737,11 +769,11 @@ setup_stack (struct intr_frame *if_) {
 struct thread *get_child_process (int pid){
 	struct thread *t = thread_current();
 	struct thread *temp;
-	struct list_elem *cur = list_begin(&t->child_list);
+	struct list_elem *cur;
 	struct list_elem *next;
-	for(cur;cur != list_end(&t->child_list);cur = next){
+	for(cur=list_begin(&t->child_list);cur != list_end(&t->child_list);cur = next){
 		next = list_next(cur);
-		temp = list_entry(cur, struct thread, elem);
+		temp = list_entry(cur, struct thread, child_elem);
 		if(pid == temp->tid){
 			return temp;
 		}
@@ -750,7 +782,7 @@ struct thread *get_child_process (int pid){
 }
 
 void remove_child_process(struct thread *cp){
-	list_remove(&cp->elem);
+	list_remove(&cp->child_elem);
 	free(cp);
 }
 
