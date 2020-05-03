@@ -142,7 +142,7 @@ __do_fork (void *aux) {
 	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
 	struct intr_frame *parent_if;
 	//parent_if = current->parent_th.tf;
-	parent_if = parent->tf;
+	parent_if = &parent->tf;
 
 
 	bool succ = true;

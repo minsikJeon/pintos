@@ -229,7 +229,9 @@ int exec (const char *cmd_line){
     tid_t ch_tid;
     struct thread *child_th;
     ch_tid = process_create_initd(cmd_line);
-
+    if(ch_tid == TID_ERROR){
+            return TID_ERROR;
+    }
     child_th = get_child_process(ch_tid);
     if(!child_th == NULL){
         return TID_ERROR;
@@ -243,6 +245,7 @@ int exec (const char *cmd_line){
         remove_child_process(child_th);
         return TID_ERROR;
     }
+    ASSERT(child_th->load_status == LOAD_SUCCESS);
     return ch_tid;
 }
 
