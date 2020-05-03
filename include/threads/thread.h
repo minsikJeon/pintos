@@ -122,6 +122,7 @@ struct thread {
 	enum load_state load_status;
 	struct semaphore *sema_exit;
 	struct semaphore *sema_load;
+	struct semaphore *sema_fork;
 	int exit_status;
 
 	struct file **fd_table;

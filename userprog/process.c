@@ -117,7 +117,7 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 	 *    TODO: according to the result). */
 	
 	memcpy (newpage, parent_page, PGSIZE);
-	writable = is_writable(parent_page);
+	writable = is_writable(pte);
 
 	/* 5. Add new page to child's page table at address VA with WRITABLE
 	 *    permission. */
@@ -141,8 +141,8 @@ __do_fork (void *aux) {
 	struct thread *current = thread_current ();
 	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
 	struct intr_frame *parent_if;
-	parent_if = current->parent_th->tf;
-	//parent_if = parent->tf;
+	//parent_if = current->parent_th.tf;
+	parent_if = parent->tf;
 
 
 	bool succ = true;
@@ -171,7 +171,7 @@ __do_fork (void *aux) {
 	 * TODO:       from the fork() until this function successfully duplicates
 	 * TODO:       the resources of parent.*/
 	struct file *temp_file;
-	for(i=0;i<(parent->max_fd);i++){
+	for(int i=0;i<(parent->max_fd);i++){
 		temp_file = file_duplicate(parent->fd_table[i]);
 		/*if(temp_file == NULL){
 			goto error; // null right?
@@ -182,7 +182,7 @@ __do_fork (void *aux) {
 
 
 	process_init ();
-
+	sema_up(&parent->sema_fork);
 	/* Finally, switch to the newly created process. */
 	if (succ)
 		do_iret (&if_);
@@ -266,11 +266,11 @@ void
 process_exit (void) {
 	struct thread *curr = thread_current ();
 
-	for(curr->max_fd--;curr->max_fd >=2 ; cur->max_fd--){
-		file_close(curr->fd_table[cur->max_fd]);
+	for(curr->max_fd--;curr->max_fd >=2 ; curr->max_fd--){
+		file_close(curr->fd_table[curr->max_fd]);
 	}
-	cur->fd_table +=2;
-	palloc_free_page(cur->fd_table);
+	curr->fd_table +=2;
+	palloc_free_page(curr->fd_table);
 
 	
 	/* TODO: Your code goes here.

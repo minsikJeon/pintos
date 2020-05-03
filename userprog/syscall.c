@@ -218,7 +218,11 @@ void exit (int status){
 }
 
 int fork(const char *thread_name){
-    return process_fork(thread_name);
+    struct thread *t = thread_current();
+    tid_t fork_tid;
+    sema_down(&t->sema_fork);
+    fork_tid = process_fork(thread_name, &t->tf);
+    return fork_tid;
 }
 
 int exec (const char *cmd_line){

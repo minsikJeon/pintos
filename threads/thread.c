@@ -201,6 +201,7 @@ thread_create (const char *name, int priority,
     t->exit_status = 1;
     sema_init(&t->sema_exit,0);
     sema_init(&t->sema_load,0);
+	sema_init(&t->sema_fork,0);
     list_push_back(&cur->child_list, &t->child_elem);
 
     t->max_fd = 2;
