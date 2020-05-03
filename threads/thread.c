@@ -195,6 +195,10 @@ thread_create (const char *name, int priority,
 
 
     /*-------syscall implementation-----------*/
+	struct thread *cur= thread_current();
+    t->parent_th = cur;
+
+    list_push_back(&cur->child_list, &t->child_elem);
     t->max_fd = 2;
     t->fd_table = palloc_get_multiple(PAL_ZERO,2);
     /*
@@ -463,14 +467,13 @@ init_thread (struct thread *t, const char *name, int priority) {
     /*for syscall*/
     list_init(&t->child_list);
 	
-	struct thread *cur= thread_current();
-    t->parent_th = cur;
+
     t->load_status = LOAD_BEFORE;
     t->exit_status = 1;
     sema_init(&t->sema_exit,0);
     sema_init(&t->sema_load,0);
 	sema_init(&t->sema_fork,0);
-    list_push_back(&cur->child_list, &t->child_elem);
+
 
 
     //save parent process??
