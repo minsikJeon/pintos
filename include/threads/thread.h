@@ -120,9 +120,10 @@ struct thread {
 	struct list child_list;
 
 	enum load_state load_status;
-	struct semaphore *sema_exit;
+	struct semaphore *sema_wait;
 	struct semaphore *sema_load;
 	struct semaphore *sema_fork;
+	struct semaphore *sema_remove;
 	int exit_status;
 
 	struct file **fd_table;

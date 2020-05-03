@@ -181,7 +181,7 @@ thread_create (const char *name, int priority,
 	thread_func *function, void *aux) {
 	struct thread *t;
 	tid_t tid;
-
+	enum intr_level old_level;
 	ASSERT (function != NULL);
 
 	/* Allocate thread. */
@@ -198,17 +198,18 @@ thread_create (const char *name, int priority,
 	struct thread *cur= thread_current();
     t->parent_th = cur;
 
-    list_push_back(&cur->child_list, &t->child_elem);
-    t->max_fd = 2;
+
+
     t->fd_table = palloc_get_multiple(PAL_ZERO,2);
-    /*
     if(t->fd_table == NULL){
         palloc_free_page(t);
         return TID_ERROR;
-    }*/
+    }
+	t->max_fd = 2;
+	list_push_back(&cur->child_list, &t->child_elem);
     /*----------------------------------------*/
 
-
+	old_level = intr_disable();
 
 	/* Call the kernel_thread if it scheduled.
 	 * Note) rdi is 1st argument, and rsi is 2nd argument. */
@@ -221,6 +222,7 @@ thread_create (const char *name, int priority,
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
 
+	intr_set_level(old_level);
 	/* Add to run queue. */
 	thread_unblock (t);
 	run_most_prior();
@@ -303,14 +305,18 @@ thread_exit (void) {
 	process_exit ();
 #endif
     struct thread *t = thread_current();
-
-
+	struct list_elem *ch_elem;
+	for(ch_elem = list_begin(&t->child_list);ch_elem != list_end(&t->child_list);){
+		struct thread *t = list_entry(ch_elem, struct thread, child_elem);
+		ch_elem = list_remove(ch_elem);
+		sema_up(&t->sema_remove);
+	}
 
 	/* Just set our status to dying and schedule another process.
 	   We will be destroyed during the call to schedule_tail(). */
 	intr_disable ();
 	t->exit_status = 0; // right?
-    sema_up(&t->sema_exit);
+    sema_up(&t->sema_wait);
 	do_schedule (THREAD_DYING);
 	NOT_REACHED ();
 }
@@ -470,9 +476,10 @@ init_thread (struct thread *t, const char *name, int priority) {
 
     t->load_status = LOAD_BEFORE;
     t->exit_status = 1;
-    sema_init(&t->sema_exit,0);
+    sema_init(&t->sema_wait,0);
     sema_init(&t->sema_load,0);
 	sema_init(&t->sema_fork,0);
+	sema_init(&t->sema_remove,0);
 
 
 
