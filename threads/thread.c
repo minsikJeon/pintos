@@ -701,10 +701,13 @@ void thread_wake(int64_t wake_time){
 /*----------------priority scheduling implementation----------------*/
 
 bool thread_compare_priority(const struct list_elem *x, const struct list_elem *y, void *aux UNUSED){
+	enum intr_level old_level;
+	old_level = intr_disable();
 	const struct thread* x_th=list_entry(x, struct thread, elem);
 	const struct thread* y_th = list_entry(y, struct thread, elem);
 	int p_x = x_th -> priority;
 	int p_y = y_th -> priority;
+	intr_set_level(old_level);
 	return p_x > p_y;
 }
 
