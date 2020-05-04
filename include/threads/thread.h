@@ -5,7 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/interrupt.h"
-#include "include/synch.h"
+#include "threads/synch.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -187,4 +187,3 @@ void priority_donation(struct thread *, int);
 void do_iret (struct intr_frame *tf);
 
 #endif /* threads/thread.h */
-

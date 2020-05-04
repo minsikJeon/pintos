@@ -222,16 +222,16 @@ process_exec (void *f_name) {
 
 	/* And then load the binary */
 	success = load (file_name, &_if);
-	sema_up(cur->sema_load);
+	sema_up(&cur->sema_load);
 
 	/* If load failed, quit. */
 	palloc_free_page (first_name);
 	if (!success)
-		cur->load_status = LOAD_FAIL;
+		cur->load_status = false;
 		return -1;
 
 	/* Start switched process. */
-	cur->load_status = LOAD_SUCCESS;
+	cur->load_status = true;
 	do_iret (&_if);
 	NOT_REACHED ();
 }
@@ -251,16 +251,15 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
-	 enum intr_level old_level;
-	 old_level = intr_disable();
 	struct thread *child_th = get_child_process(child_tid);
 	if(child_th ==NULL){
 		return -1;
 	}
-	intr_set_level(old_level);
-	sema_down(&child_th->sema_exit);
+	sema_down(&child_th->sema_wait);
 	int exit_st = child_th -> exit_status;
 	remove_child_process(child_th);
+	sema_up(&child_th->sema_remove);
+
 	return exit_st;
 }
 
@@ -774,7 +773,8 @@ struct thread *get_child_process (int pid){
 	struct thread *temp;
 	struct list_elem *cur;
 	struct list_elem *next;
-	for(cur=list_begin(&t->child_list);cur != list_end(&t->child_list);cur = list_next(cur)){
+	for(cur=list_begin(&t->child_list);cur != list_end(&t->child_list);cur = next){
+		next = list_next(cur);
 		temp = list_entry(cur, struct thread, child_elem);
 		if(pid == temp->tid){
 			return temp;
