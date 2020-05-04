@@ -10,8 +10,6 @@
 #include "threads/palloc.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
-#include "threads/fixed-point.h"
-#include "devices/timer.h"
 #include "intrinsic.h"
 #ifdef USERPROG
 #include "userprog/process.h"
@@ -133,7 +131,6 @@ thread_start (void) {
 	/* Wait for the idle thread to initialize idle_thread. */
 	sema_down (&idle_started);
 }
-  /* Enforce preemption. */
 
 /* Called by the timer interrupt handler at each timer tick.
    Thus, this function runs in an external interrupt context. */
@@ -178,10 +175,10 @@ thread_print_stats (void) {
    Priority scheduling is the goal of Problem 1-3. */
 tid_t
 thread_create (const char *name, int priority,
-	thread_func *function, void *aux) {
+		thread_func *function, void *aux) {
 	struct thread *t;
 	tid_t tid;
-	enum intr_level old_level;
+
 	ASSERT (function != NULL);
 
 	/* Allocate thread. */
@@ -192,24 +189,6 @@ thread_create (const char *name, int priority,
 	/* Initialize thread. */
 	init_thread (t, name, priority);
 	tid = t->tid = allocate_tid ();
-
-
-    /*-------syscall implementation-----------*/
-	struct thread *cur= thread_current();
-    t->parent_th = cur;
-
-
-
-    t->fd_table = palloc_get_multiple(PAL_ZERO,2);
-    if(t->fd_table == NULL){
-        palloc_free_page(t);
-        return TID_ERROR;
-    }
-	t->max_fd = 2;
-	list_push_back(&cur->child_list, &t->child_elem);
-    /*----------------------------------------*/
-
-	old_level = intr_disable();
 
 	/* Call the kernel_thread if it scheduled.
 	 * Note) rdi is 1st argument, and rsi is 2nd argument. */
@@ -222,7 +201,6 @@ thread_create (const char *name, int priority,
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
 
-	intr_set_level(old_level);
 	/* Add to run queue. */
 	thread_unblock (t);
 	run_most_prior();
@@ -304,19 +282,10 @@ thread_exit (void) {
 #ifdef USERPROG
 	process_exit ();
 #endif
-    struct thread *t = thread_current();
-	struct list_elem *ch_elem;
-	for(ch_elem = list_begin(&t->child_list);ch_elem != list_end(&t->child_list);){
-		struct thread *t = list_entry(ch_elem, struct thread, child_elem);
-		ch_elem = list_remove(ch_elem);
-		sema_up(&t->sema_remove);
-	}
 
 	/* Just set our status to dying and schedule another process.
 	   We will be destroyed during the call to schedule_tail(). */
 	intr_disable ();
-	t->exit_status = 0; // right?
-    sema_up(&t->sema_wait);
 	do_schedule (THREAD_DYING);
 	NOT_REACHED ();
 }
@@ -327,9 +296,10 @@ void
 thread_yield (void) {
 	struct thread *curr = thread_current ();
 	enum intr_level old_level;
-	old_level = intr_disable ();
+
 	ASSERT (!intr_context ());
 
+	old_level = intr_disable ();
 	if (curr != idle_thread)
 		list_insert_ordered (&ready_list, &curr->elem, thread_compare_priority, NULL);
 	do_schedule (THREAD_READY);
@@ -469,21 +439,6 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->init_priority = priority;
 	t->lock_to_wait = NULL;
 	list_init(&t->locks);
-
-    /*for syscall*/
-    list_init(&t->child_list);
-	
-
-    t->load_status = false;
-    t->exit_status = 1;
-    sema_init(&t->sema_wait,0);
-    sema_init(&t->sema_load,0);
-	sema_init(&t->sema_fork,0);
-	sema_init(&t->sema_remove,0);
-
-
-
-    //save parent process??
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
@@ -713,13 +668,10 @@ void thread_wake(int64_t wake_time){
 /*----------------priority scheduling implementation----------------*/
 
 bool thread_compare_priority(const struct list_elem *x, const struct list_elem *y, void *aux UNUSED){
-	enum intr_level old_level;
-	old_level = intr_disable();
 	const struct thread* x_th=list_entry(x, struct thread, elem);
 	const struct thread* y_th = list_entry(y, struct thread, elem);
 	int p_x = x_th -> priority;
 	int p_y = y_th -> priority;
-	intr_set_level(old_level);
 	return p_x > p_y;
 }
 
@@ -728,22 +680,15 @@ bool thread_compare_priority(const struct list_elem *x, const struct list_elem *
 void run_most_prior(void){
 	struct thread *cur = thread_current();
 	struct thread *t;
-	enum intr_level old_level;
-	old_level = intr_disable();
 	if (list_empty(&ready_list)==false){
 		t = list_entry(list_front(&ready_list), struct thread, elem);
 		if(cur->priority < t->priority){
 			thread_yield();
 		}
 	}
-	intr_set_level(old_level);
 }
 
 
 /*-------------------------------------------------------------*/
 
 
-/*-------------------system call implementation-----------------*/
-
-
-/*--------------------------------------------------------------*/
