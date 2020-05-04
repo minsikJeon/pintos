@@ -236,16 +236,12 @@ int exec (const char *cmd_line){
     if(!child_th == NULL){
         return TID_ERROR;
     }
+    sema_down(&child_th->sema_load);
 
-    if(child_th->load_status == LOAD_BEFORE){
-        sema_down(&child_th->sema_load);
-    }
-
-    if(child_th->load_status==LOAD_FAIL){
+    if(child_th->load_status==false){
         remove_child_process(child_th);
         return TID_ERROR;
     }
-    ASSERT(child_th->load_status == LOAD_SUCCESS);
     return ch_tid;
 }
 

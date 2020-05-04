@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/interrupt.h"
+#include "include/synch.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -16,12 +17,6 @@ enum thread_status {
 	THREAD_READY,       /* Not running but ready to run. */
 	THREAD_BLOCKED,     /* Waiting for an event to trigger. */
 	THREAD_DYING        /* About to be destroyed. */
-};
-
-enum load_state {
-	LOAD_BEFORE,
-	LOAD_FAIL,
-	LOAD_SUCCESS
 };
 
 /* Thread identifier type.
@@ -119,11 +114,11 @@ struct thread {
 	struct list_elem child_elem;
 	struct list child_list;
 
-	enum load_state load_status;
-	struct semaphore *sema_wait;
-	struct semaphore *sema_load;
-	struct semaphore *sema_fork;
-	struct semaphore *sema_remove;
+	bool load_status;
+	struct semaphore sema_wait;
+	struct semaphore sema_load;
+	struct semaphore sema_fork;
+	struct semaphore sema_remove;
 	int exit_status;
 
 	struct file **fd_table;

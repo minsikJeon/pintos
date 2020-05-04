@@ -227,11 +227,11 @@ process_exec (void *f_name) {
 	/* If load failed, quit. */
 	palloc_free_page (first_name);
 	if (!success)
-		cur->load_status = LOAD_FAIL;
+		cur->load_status = false;
 		return -1;
 
 	/* Start switched process. */
-	cur->load_status = LOAD_SUCCESS;
+	cur->load_status = true;
 	do_iret (&_if);
 	NOT_REACHED ();
 }
@@ -258,7 +258,7 @@ process_wait (tid_t child_tid UNUSED) {
 	sema_down(&child_th->sema_wait);
 	int exit_st = child_th -> exit_status;
 	remove_child_process(child_th);
-	sema_up(&child->sema_remove);
+	sema_up(&child_th->sema_remove);
 
 	return exit_st;
 }
