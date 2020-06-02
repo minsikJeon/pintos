@@ -91,7 +91,7 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	struct thread *t = thread_current();
 	t->fork_status = 1;
 	tid_t id = thread_create(name,PRI_DEFAULT, __do_fork, if_);
-	sema_down(&t->child_fork);
+	sema_down(&t->sema_fork);
 	if(t->child_exit_stat == TID_ERROR)
 		id = TID_ERROR;
 	return id;
@@ -204,7 +204,7 @@ __do_fork (void *aux) {
 error:
 	current->child_exit_stat = -1;
 	parent -> child_exit_stat = -1;
-	sema_up(&parent->child_fork);
+	sema_up(&parent->sema_fork);
 	thread_exit ();
 }
 
@@ -282,7 +282,7 @@ process_wait (tid_t child_tid UNUSED) {
 	}
 	sema_down(&child_th->sema_wait);
 	remove_child_process(child_th);
-	exit_status = child->exit_status;
+	exit_status = child_th->exit_status;
 	sema_up(&child_th->sema_remove);
 
 	return exit_status;
@@ -787,8 +787,8 @@ setup_stack (struct intr_frame *if_) {
 /*------------------syscall implementation---------------*/
 struct thread *get_child_process (int pid){
 	struct thread *t = thread_current();
-	struct list_elem *e = list_begin(&t->child);
-	while(e!=list_end(&t->child)){
+	struct list_elem *e = list_begin(&t->child_list);
+	while(e!=list_end(&t->child_list)){
 		struct thread *temp = list_entry(e,struct thread, child_elem);
 		if(pid == temp->tid) 
 			return temp;
