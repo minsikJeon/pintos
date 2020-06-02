@@ -114,15 +114,24 @@ struct thread {
 	struct list_elem child_elem;
 	struct list child_list;
 
-	bool load_status;
+	int load_status;
+	int exit_status;
+
+
 	struct semaphore sema_wait;
 	struct semaphore sema_load;
 	struct semaphore sema_fork;
 	struct semaphore sema_remove;
-	int exit_status;
 
+	//file
+	struct file *cur_file;
 	struct file **fd_table;
 	int max_fd;
+
+	//fork
+	int fork_status;
+	int child_exit_stat;
+
 	/*---------------------------*/
 
 #ifdef VM

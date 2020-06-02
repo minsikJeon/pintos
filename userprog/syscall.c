@@ -76,13 +76,32 @@ syscall_init (void) {
 /*--------------------My Implementatoin---------------*/
 void
 check_address(void *addr){
-    if(!is_user_vaddr(addr)){ // minimum hallgguim?
+    if(!is_user_vaddr(addr)){ //check
         exit(-1);
+    }
+    if(is_kernel_vaddr(addr) || (uint64_t)addr == 0x0 || addr == NULL){
+        exit(-1);
+        return;
+    }
+    void *page_ptr = (void *) pml4_get_page(thread_current()->pml4, addr);
+    if (page_ptr == NULL){
+		
+        exit(-1);
+		return;
+	}
+}
+
+//check
+void check_buffer(void *buffer, unsigned size){
+    char *ptr = (char *)buffer;
+    for(int i=0;i<size;i++){
+        check_addr((void *)ptr);
+        ptr++;
     }
 }
 
-
 //get the arguments from stack and put it in arg array. 
+/*
 void get_argument(struct intr_frame *f, uint64_t *arg, int count){
     for(int i=0;i<count;i++){
         if(i==0){
@@ -104,7 +123,7 @@ void get_argument(struct intr_frame *f, uint64_t *arg, int count){
             arg[i] = f->R.r9;
         }
     }
-}
+}*/
 
 /*-------------------Implementation End--------------*/
 
@@ -136,8 +155,10 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
 
         case SYS_FORK:
+            check_address();
             get_argument(f, &arg[0],1);
-            fork(arg[0]);
+            int pid = fork((const char *)arg[0]);
+            f->R.rax = pid;
             break;
 
         case SYS_EXEC:
@@ -361,3 +382,4 @@ void close(int fd){
     process_close_file(fd);
     lock_release(&filesys_lock);
 }
+

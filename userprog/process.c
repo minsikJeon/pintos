@@ -28,6 +28,9 @@ static bool load (const char *file_name, struct intr_frame *if_);
 static void initd (void *f_name);
 static void __do_fork (void *);
 
+
+//add
+struct lock open_lock;
 /* General process initializer for initd and other process. */
 static void
 process_init (void) {
@@ -43,6 +46,7 @@ tid_t
 process_create_initd (const char *file_name) {
 	char *fn_copy;
 	tid_t tid;
+
 
 	/* Make a copy of FILE_NAME.
 	 * Otherwise there's a race between the caller and load(). */
@@ -84,8 +88,13 @@ initd (void *f_name) {
 tid_t
 process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	/* Clone current thread to new thread.*/
-	return thread_create (name,
-			PRI_DEFAULT, __do_fork, thread_current ());
+	struct thread *t = thread_current();
+	t->fork_status = 1;
+	tid_t id = thread_create(name,PRI_DEFAULT, __do_fork, if_);
+	sema_down(&t->child_fork);
+	if(t->child_exit_stat == TID_ERROR)
+		id = TID_ERROR;
+	return id;
 }
 
 #ifndef VM
@@ -123,6 +132,7 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
 	 *    permission. */
 	if (!pml4_set_page (current->pml4, va, newpage, writable)) {
 		/* 6. TODO: if fail to insert page, do error handling. */
+		palloc_free_page(newpage);
 		printf("error bbiyongbbiyong\n");
 		return false;
 	}
@@ -141,8 +151,7 @@ __do_fork (void *aux) {
 	struct thread *current = thread_current ();
 	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
 	struct intr_frame *parent_if;
-	//parent_if = current->parent_th.tf;
-	parent_if = &parent->tf;
+	parent_if = (struct intr_frame *) aux;
 
 
 	bool succ = true;
@@ -171,11 +180,15 @@ __do_fork (void *aux) {
 	 * TODO:       from the fork() until this function successfully duplicates
 	 * TODO:       the resources of parent.*/
 	struct file *temp_file;
-	for(int i=0;i<(parent->max_fd);i++){
+	for(int i=2;i<(parent->max_fd);i++){
+		if(parent->fd_table[i] == NULL){
+			break;
+		}//check
 		temp_file = file_duplicate(parent->fd_table[i]);
-		/*if(temp_file == NULL){
+
+		if(temp_file == NULL){
 			goto error; // null right?
-		}*/
+		}
 		current->fd_table[i] = temp_file;
 	}
 	current->max_fd = parent->max_fd;
@@ -184,9 +197,14 @@ __do_fork (void *aux) {
 	process_init ();
 	sema_up(&parent->sema_fork);
 	/* Finally, switch to the newly created process. */
-	if (succ)
+	if (succ){
+		if_.R.rax = 0;
 		do_iret (&if_);
+	}
 error:
+	current->child_exit_stat = -1;
+	parent -> child_exit_stat = -1;
+	sema_up(&parent->child_fork);
 	thread_exit ();
 }
 
@@ -194,7 +212,7 @@ error:
  * Returns -1 on fail. */
 int
 process_exec (void *f_name) {
-	char *file_name = f_name;
+	char *file_name = f_name;//check: need an allocation?
 	bool success;
 	/* We cannot use the intr_frame in the thread structure.
 	 * This is because when current thread rescheduled,
@@ -214,7 +232,9 @@ process_exec (void *f_name) {
 	
 	first_name = palloc_get_page(0);
 	strlcpy(first_name, file_name, PGSIZE);
-	
+	if(first_name == NULL){
+		return -1;
+	}
 	char *save_ptr;
 	first_name = strtok_r(first_name," ",&save_ptr);
 
@@ -222,16 +242,16 @@ process_exec (void *f_name) {
 
 	/* And then load the binary */
 	success = load (file_name, &_if);
-	sema_up(&cur->sema_load);
+	//sema_up(&cur->sema_load); check
 
 	/* If load failed, quit. */
 	palloc_free_page (first_name);
-	if (!success)
-		cur->load_status = false;
+	if (!success){
+		cur->load_status = success;
 		return -1;
-
+	}
 	/* Start switched process. */
-	cur->load_status = true;
+	cur->load_status = success;
 	do_iret (&_if);
 	NOT_REACHED ();
 }
@@ -251,35 +271,41 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
-	struct thread *child_th = get_child_process(child_tid);
-	if(child_th ==NULL){
+	struct thread *child_th;
+	int exit_status;
+	child_th = get_child_process(child_tid);
+	if(child_th == NULL){
+		return -1;
+	}
+	if(child_th->exit_status==-1){
 		return -1;
 	}
 	sema_down(&child_th->sema_wait);
-	int exit_st = child_th -> exit_status;
 	remove_child_process(child_th);
+	exit_status = child->exit_status;
 	sema_up(&child_th->sema_remove);
 
-	return exit_st;
+	return exit_status;
 }
 
 /* Exit the process. This function is called by thread_exit (). */
 void
 process_exit (void) {
 	struct thread *curr = thread_current ();
-
 	for(curr->max_fd--;curr->max_fd >=2 ; curr->max_fd--){
-		file_close(curr->fd_table[curr->max_fd]);
+		process_close_file(curr->fd_table[curr->max_fd]);
 	}
-	curr->fd_table +=2;
 	palloc_free_page(curr->fd_table);
+	curr -> exit_status = true;
 
-	
 	/* TODO: Your code goes here.
 	 * TODO: Implement process termination message (see
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
-
+	struct thread *parent = curr->parent_th;
+	if(curr->child_exit_stat == -1 && parent->fork_status == 1){
+		list_remove(&curr->child_elem);
+	}
 	process_cleanup ();
 }
 
@@ -287,15 +313,6 @@ process_exit (void) {
 static void
 process_cleanup (void) {
 	struct thread *curr = thread_current ();
-
-	int fd_cur = curr->max_fd;
-	fd_cur--;
-	while(fd_cur>1){
-		file_close(curr->fd_table[fd_cur]);
-		fd_cur--;
-	}
-	curr->max_fd = 2;
-	palloc_free_page(curr->fd_table);
 
 #ifdef VM
 	supplemental_page_table_kill (&curr->spt);
@@ -770,17 +787,26 @@ setup_stack (struct intr_frame *if_) {
 /*------------------syscall implementation---------------*/
 struct thread *get_child_process (int pid){
 	struct thread *t = thread_current();
+	struct list_elem *e = list_begin(&t->child);
+	while(e!=list_end(&t->child)){
+		struct thread *temp = list_entry(e,struct thread, child_elem);
+		if(pid == temp->tid) 
+			return temp;
+		e = list_next(e);
+	}
+	return NULL;
+	/*
+	struct thread *t = thread_current();
 	struct thread *temp;
 	struct list_elem *cur;
 	struct list_elem *next;
-	for(cur=list_begin(&t->child_list);cur != list_end(&t->child_list);cur = next){
-		next = list_next(cur);
+	for(cur=list_begin(&t->child_list);cur != list_end(&t->child_list);cur = list_next(cur)){
 		temp = list_entry(cur, struct thread, child_elem);
 		if(pid == temp->tid){
 			return temp;
 		}
 	}
-	return NULL;
+	return NULL;*/
 }
 
 void remove_child_process(struct thread *cp){
@@ -791,6 +817,10 @@ void remove_child_process(struct thread *cp){
 /*add a file to fd_table of current thread*/
 int process_add_file (struct file *f){
 	struct thread *t = thread_current();
+	if(t->fd_table == NULL){
+		file_close(f);
+		return -1;
+	}//check
 	t->fd_table[t->max_fd]=f;
 	t->max_fd +=1;
 	return t->max_fd;
@@ -811,7 +841,11 @@ struct file *process_get_file(int fd){
 /*close a file with fd*/
 void process_close_file(int fd){
 	struct thread *t = thread_current();
+	struct file *f = process_get_file(fd);
 	if(fd<2 || fd>=(t->max_fd)){
+		return;
+	}
+	if(f == NULL){
 		return;
 	}
 	file_close(t->fd_table[fd]);
